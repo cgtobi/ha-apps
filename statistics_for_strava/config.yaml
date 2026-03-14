@@ -1,0 +1,107 @@
+name: "Statistics for Strava"
+version: "0.3.46"
+slug: "statistics_for_strava"
+description: "Strava statistics dashboard"
+url: "https://github.com/robiningelbrecht/statistics-for-strava"
+arch:
+  - amd64
+  - aarch64
+  - armv7
+startup: services
+boot: auto
+init: false
+ingress: false
+panel_icon: "mdi:chart-line"
+panel_title: "Statistics for Strava"
+homeassistant: "2025.1.0"
+changelog: true
+
+ports:
+  8080/tcp: null
+ports_description:
+  8080/tcp: "Statistics for Strava Web UI"
+webui: "http://[HOST]:[PORT:8080]"
+watchdog: "http://[HOST]:[PORT:8080]/healthz"
+
+options:
+  strava_client_id: ""
+  strava_client_secret: ""
+  strava_refresh_token: ""
+  tz: "Etc/GMT"
+  strava_challenge_history_html: ""
+  general_app_url: ""
+  general_app_subtitle: ""
+  general_profile_picture_url: ""
+  appearance_locale: ""
+  appearance_unit_system: "metric"
+  appearance_time_format: 24
+  import_number_of_new_activities_to_process_per_import: 250
+  import_opt_in_to_segment_detail_import_configured: false
+  import_opt_in_to_segment_detail_import: false
+  app_config_yaml: |
+    general:
+      appUrl: "http://CHANGE_ME:8080/"
+      appSubTitle: null
+      profilePictureUrl: null
+      athlete:
+        birthday: 'YYYY-MM-DD'
+        maxHeartRateFormula: "fox"
+        restingHeartRateFormula: "heuristicAgeBased"
+        heartRateZones:
+          mode: relative
+          default:
+            zone1: { from: 50, to: 60 }
+            zone2: { from: 61, to: 70 }
+            zone3: { from: 71, to: 80 }
+            zone4: { from: 81, to: 90 }
+            zone5: { from: 91, to: null }
+        weightHistory:
+          "YYYY-MM-DD": 100
+        ftpHistory:
+          cycling: []
+          running: []
+    appearance:
+      locale: "en_US"
+      unitSystem: "metric"
+      timeFormat: 24
+      dateFormat:
+        short: "d-m-y"
+        normal: "d-m-Y"
+    import:
+      numberOfNewActivitiesToProcessPerImport: 250
+      sportTypesToImport: []
+      activityVisibilitiesToImport: []
+      skipActivitiesRecordedBefore: null
+      activitiesToSkipDuringImport: []
+      optInToSegmentDetailImport: false
+    zwift:
+      level: null
+      racingScore: null
+    daemon:
+      cron:
+        - action: "importDataAndBuildApp"
+          expression: "0 14 * * *"
+          enabled: false
+  caddy_log_level: "ERROR"
+  cron_import_enabled: false
+  cron_import_expression: ""
+
+schema:
+  strava_client_id: str
+  strava_client_secret: password
+  strava_refresh_token: password
+  tz: str
+  strava_challenge_history_html: str
+  general_app_url: str
+  general_app_subtitle: str
+  general_profile_picture_url: str
+  appearance_locale: str
+  appearance_unit_system: str
+  appearance_time_format: int
+  import_number_of_new_activities_to_process_per_import: int
+  import_opt_in_to_segment_detail_import_configured: bool
+  import_opt_in_to_segment_detail_import: bool
+  app_config_yaml: str
+  caddy_log_level: str
+  cron_import_enabled: bool
+  cron_import_expression: str

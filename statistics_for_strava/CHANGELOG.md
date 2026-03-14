@@ -1,0 +1,114 @@
+# Changelog
+
+## 0.3.46
+
+- feat: add `strava_challenge_history_html` option to import manual challenge/trophy history
+- feat: write challenge history HTML to `/data/storage/files/strava-challenge-history.html` during reconcile
+- fix: create `/var/www/storage -> /data/storage` symlink for upstream challenge import path compatibility
+- feat: add preflight visibility for challenge-history import readiness
+
+## 0.3.45
+
+- fix: run Doctrine migrations before `app:strava:build-files` during reconcile to avoid missing `KeyValue` table on fresh installs
+
+## 0.3.44
+
+- feat: add startup preflight logging for common 404 causes (config/build/runtime readiness)
+
+## 0.3.43
+
+- feat: add German translations in `translations/de.yaml`
+
+## 0.3.42
+
+- feat: add English translations for add-on configuration options and network label
+
+## 0.3.41
+
+- feat: log start/success messages when running `app:strava:build-files` during reconcile
+
+## 0.3.40
+
+- feat: expose `general.appUrl` via new add-on option `general_app_url`
+
+## 0.3.39
+
+- fix: run `app:strava:build-files` on every config reconcile invocation (not only on config hash changes)
+
+## 0.3.38
+
+- feat: add UI overrides for selected `general`, `appearance`, and `import` configuration keys
+- feat: run `app:strava:build-files` automatically after reconciled config changes
+
+## 0.3.36
+
+- feat: add UI options to override `importDataAndBuildApp` cron schedule and enabled state
+- feat: render reconciled config from options before validation/write
+
+## 0.3.35
+
+- fix: keep daemon alive with auto-restart loop and restore startup compatibility
+- fix: export Strava env vars from `/data/options.json` for cron/import subprocesses
+
+## 0.3.34
+
+- feat: provide daemon sample config
+
+## 0.3.33
+
+- fix: ensure config propagation
+
+## 0.3.32
+
+- fix: harden startup validation and health grace semantics
+- fix: replace synthetic heartbeat with daemon PID readiness check
+
+## 0.3.31
+
+- feat: pin base image to statistics-for-strava v4.7.1
+
+## 0.3.30
+
+- fix: Caddy static routing for manifest and assets
+
+## 0.3.29
+
+- feat: add runtime preflight loader and watchdog health endpoint
+
+## 0.3.28
+
+- feat: harden startup option validation and make forced config regen one-shot
+
+## 0.3.27
+
+- docs: added same privacy note
+
+## 0.3.26
+
+- feat: remove legacy startup scripts and align docs with current direct-port config behavior
+
+## 0.3.25
+
+- fix: clean up
+- fix: clean up unused config
+- fix: remove unused config
+
+## 0.3.24
+
+- feat: make web ui port configurable
+
+## 0.3.23
+
+- fix: harden startup config handling and centralize bootstrap in cont-init
+
+## 0.3.22
+
+- feat: make config yaml editable
+
+## 0.3.21
+
+- feat: persist db and served files
+
+## 0.3.20
+
+- feat: initial setup

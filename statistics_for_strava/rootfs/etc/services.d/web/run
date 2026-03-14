@@ -1,0 +1,25 @@
+#!/usr/bin/with-contenv sh
+set -eu
+
+echo "[web] Starting web server on :8080"
+
+SOURCE_CONFIG_DIR="/data/config/app"
+TARGET_CONFIG_DIR="/var/www/config/app"
+
+mkdir -p /var/www/config
+mkdir -p "$SOURCE_CONFIG_DIR"
+
+# Reconcile persisted config from add-on options on each service start.
+sh /usr/local/bin/sfs-reconcile-config.sh
+
+# Ensure app config path is stable even if the base image recreates /var/www/config.
+if [ -L "$TARGET_CONFIG_DIR" ]; then
+  rm -f "$TARGET_CONFIG_DIR"
+elif [ -d "$TARGET_CONFIG_DIR" ]; then
+  rm -rf "$TARGET_CONFIG_DIR"
+elif [ -f "$TARGET_CONFIG_DIR" ]; then
+  rm -f "$TARGET_CONFIG_DIR"
+fi
+ln -s "$SOURCE_CONFIG_DIR" "$TARGET_CONFIG_DIR"
+
+exec frankenphp run --config /etc/frankenphp/Caddyfile

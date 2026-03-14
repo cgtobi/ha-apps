@@ -1,0 +1,76 @@
+---
+configuration:
+  strava_client_id:
+    name: Strava client ID
+    description: >-
+      OAuth client ID from your Strava API application.
+  strava_client_secret:
+    name: Strava client secret
+    description: >-
+      OAuth client secret from your Strava API application.
+  strava_refresh_token:
+    name: Strava refresh token
+    description: >-
+      Refresh token used to obtain access tokens for Strava API requests.
+  tz:
+    name: Time zone
+    description: >-
+      Container time zone (for example `Etc/GMT` or `Europe/Berlin`).
+  strava_challenge_history_html:
+    name: Strava challenge history HTML
+    description: >-
+      Optional HTML source from your Strava trophy-case page used to import historical challenges and trophies.
+  general_app_url:
+    name: App URL
+    description: >-
+      Absolute public URL of this app. Overrides `general.appUrl` when set.
+  general_app_subtitle:
+    name: App subtitle
+    description: >-
+      Optional subtitle shown in the app navigation.
+  general_profile_picture_url:
+    name: Profile picture URL
+    description: >-
+      Optional image URL shown in the app navigation/profile area.
+  appearance_locale:
+    name: Locale
+    description: >-
+      UI locale override (for example `en_US`, `de_DE`, `nl_BE`).
+  appearance_unit_system:
+    name: Unit system
+    description: >-
+      Unit system override (`metric` or `imperial`).
+  appearance_time_format:
+    name: Time format
+    description: >-
+      Time format override (`24` or `12`).
+  import_number_of_new_activities_to_process_per_import:
+    name: New activities per import
+    description: >-
+      Max number of new activities to process per import run.
+  import_opt_in_to_segment_detail_import_configured:
+    name: Configure segment detail import
+    description: >-
+      Enable to apply the segment detail import toggle from the option below.
+  import_opt_in_to_segment_detail_import:
+    name: Import segment details
+    description: >-
+      Import detailed segment data (more API calls; can significantly slow imports).
+  app_config_yaml:
+    name: App configuration YAML
+    description: >-
+      Base application configuration. Reconciled to `/data/config/app/config.yaml`.
+  caddy_log_level:
+    name: Caddy log level
+    description: >-
+      Log verbosity for the embedded web server (for example `ERROR`, `INFO`).
+  cron_import_enabled:
+    name: Enable import cron
+    description: >-
+      Enable or disable scheduled `importDataAndBuildApp`.
+  cron_import_expression:
+    name: Import cron expression
+    description: >-
+      5-field cron expression for scheduled `importDataAndBuildApp` execution.
+network:
+  8080/tcp: Statistics for Strava web UI

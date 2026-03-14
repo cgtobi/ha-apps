@@ -1,0 +1,29 @@
+monolog:
+    channels:
+        - deprecation # Deprecations are logged in the dedicated "deprecation" channel when it exists
+        - strava-api
+    handlers:
+        strava-api:
+            type:  rotating_file
+            max_files: 5
+            path: "/data/storage/files/logs/strava-api.log"
+            level: info
+            channels: ["strava-api"]
+        console-output:
+            type: rotating_file
+            max_files: 5
+            path: "/data/storage/files/logs/console-output.log"
+            level: info
+            channels: ["console-output"]
+        daemon:
+          type: rotating_file
+          max_files: 5
+          path: "/data/storage/files/logs/daemon.log"
+          level: info
+          channels: ["daemon"]
+        webhooks:
+          type: rotating_file
+          max_files: 5
+          path: "/data/storage/files/logs/webhooks.log"
+          level: info
+          channels: ["webhooks"]

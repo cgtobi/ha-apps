@@ -1,0 +1,144 @@
+#!/usr/bin/with-contenv sh
+set -eu
+
+echo "[init] Preparing persistent storage"
+
+OPTIONS_FILE="/data/options.json"
+HA_ADDON_CONFIG_DIR="/addon_configs/local_statistics_for_strava"
+PERSIST_CONFIG_DIR="/data/config/app"
+TARGET_CONFIG_DIR="/var/www/config/app"
+TARGET_STORAGE_DIR="/var/www/storage"
+STARTUP_MARKER_FILE="/data/runtime/health.startup"
+S6_ENV_DIR_1="/var/run/s6/container_environment"
+S6_ENV_DIR_2="/run/s6/container_environment"
+
+mkdir -p /data/build/html /data/build/api
+mkdir -p /data/storage/database /data/storage/files/logs /data/storage/gear-maintenance
+mkdir -p /data/runtime
+mkdir -p "$PERSIST_CONFIG_DIR"
+
+# Startup marker used by /healthz grace handling.
+date +%s > "$STARTUP_MARKER_FILE"
+
+# Ensure app config path points to persistent data.
+if [ -L "$TARGET_CONFIG_DIR" ]; then
+  rm -f "$TARGET_CONFIG_DIR"
+elif [ -d "$TARGET_CONFIG_DIR" ]; then
+  rm -rf "$TARGET_CONFIG_DIR"
+elif [ -f "$TARGET_CONFIG_DIR" ]; then
+  rm -f "$TARGET_CONFIG_DIR"
+fi
+mkdir -p /var/www/config
+ln -s "$PERSIST_CONFIG_DIR" "$TARGET_CONFIG_DIR"
+
+# Ensure app-relative storage path resolves to persistent /data/storage.
+if [ -L "$TARGET_STORAGE_DIR" ]; then
+  rm -f "$TARGET_STORAGE_DIR"
+elif [ -d "$TARGET_STORAGE_DIR" ]; then
+  rm -rf "$TARGET_STORAGE_DIR"
+elif [ -f "$TARGET_STORAGE_DIR" ]; then
+  rm -f "$TARGET_STORAGE_DIR"
+fi
+ln -s /data/storage "$TARGET_STORAGE_DIR"
+
+# Backward-compatible import for existing user file locations.
+import_legacy_config_once() {
+  LEGACY_CONFIG_IMPORTED="false"
+  if [ ! -f "$PERSIST_CONFIG_DIR/config.yaml" ]; then
+    if [ -f "$HA_ADDON_CONFIG_DIR/config/app/config.yaml" ]; then
+      cp "$HA_ADDON_CONFIG_DIR/config/app/config.yaml" "$PERSIST_CONFIG_DIR/config.yaml"
+      LEGACY_CONFIG_IMPORTED="true"
+    elif [ -f "$HA_ADDON_CONFIG_DIR/config.yaml" ]; then
+      cp "$HA_ADDON_CONFIG_DIR/config.yaml" "$PERSIST_CONFIG_DIR/config.yaml"
+      LEGACY_CONFIG_IMPORTED="true"
+    fi
+  fi
+}
+
+validate_yaml_file() {
+  yaml_file="$1"
+  php /usr/local/share/sfs/validate-app-config.php "$yaml_file" >/tmp/sfs-config-validate.log 2>&1
+}
+
+require_non_empty() {
+  key="$1"
+  value="$2"
+  if [ -z "$value" ]; then
+    echo "FATAL: Required option '${key}' is empty"
+    exit 1
+  fi
+}
+
+# Write runtime env expected by Symfony app.
+if [ ! -f "$OPTIONS_FILE" ]; then
+  echo "FATAL: Missing required ${OPTIONS_FILE}"
+  exit 1
+fi
+
+read_opt() {
+  key="$1"
+  jq -r --arg k "$key" '.[$k] // ""' "$OPTIONS_FILE"
+}
+
+STRAVA_CLIENT_ID="$(read_opt strava_client_id)"
+STRAVA_CLIENT_SECRET="$(read_opt strava_client_secret)"
+STRAVA_REFRESH_TOKEN="$(read_opt strava_refresh_token)"
+TZ_VALUE="$(read_opt tz)"
+APP_CONFIG_YAML="$(read_opt app_config_yaml)"
+
+require_non_empty "strava_client_id" "$STRAVA_CLIENT_ID"
+require_non_empty "strava_client_secret" "$STRAVA_CLIENT_SECRET"
+require_non_empty "strava_refresh_token" "$STRAVA_REFRESH_TOKEN"
+require_non_empty "tz" "$TZ_VALUE"
+
+CONFIG_SOURCE="existing"
+if [ -n "$APP_CONFIG_YAML" ]; then
+  # Keep one authoritative reconciliation path used by init + services.
+  if ! sh /usr/local/bin/sfs-reconcile-config.sh; then
+    echo "FATAL: Could not reconcile /data/config/app/config.yaml from /data/options.json"
+    exit 1
+  fi
+  CONFIG_SOURCE="options"
+else
+  import_legacy_config_once
+  if [ "${LEGACY_CONFIG_IMPORTED}" = "true" ]; then
+    CONFIG_SOURCE="legacy"
+  fi
+fi
+
+# Also inject env at s6 level so longrun services always receive these variables.
+for env_dir in "$S6_ENV_DIR_1" "$S6_ENV_DIR_2"; do
+  if [ -d "$env_dir" ]; then
+    printf '%s' "$STRAVA_CLIENT_ID" > "${env_dir}/STRAVA_CLIENT_ID"
+    printf '%s' "$STRAVA_CLIENT_SECRET" > "${env_dir}/STRAVA_CLIENT_SECRET"
+    printf '%s' "$STRAVA_REFRESH_TOKEN" > "${env_dir}/STRAVA_REFRESH_TOKEN"
+    printf '%s' "$TZ_VALUE" > "${env_dir}/TZ"
+    printf '%s' "$(read_opt caddy_log_level)" > "${env_dir}/CADDY_LOG_LEVEL"
+  fi
+done
+
+if [ ! -f "$PERSIST_CONFIG_DIR/config.yaml" ]; then
+  echo "FATAL: Missing required ${PERSIST_CONFIG_DIR}/config.yaml"
+  echo "FATAL: Provide app_config_yaml in add-on options or place config at ${PERSIST_CONFIG_DIR}/config.yaml"
+  exit 1
+fi
+
+if ! validate_yaml_file "$PERSIST_CONFIG_DIR/config.yaml"; then
+  echo "FATAL: Invalid ${PERSIST_CONFIG_DIR}/config.yaml structure"
+  sed -n '1,5p' /tmp/sfs-config-validate.log || true
+  exit 1
+fi
+
+if grep -Eq '^[[:space:]]*appUrl:[[:space:]]*["'\'']?http://CHANGE_ME:8080/?["'\'']?[[:space:]]*$' "$PERSIST_CONFIG_DIR/config.yaml"; then
+  echo "FATAL: general.appUrl still uses placeholder http://CHANGE_ME:8080/"
+  echo "FATAL: Set a real reachable URL in app_config_yaml.general.appUrl and restart"
+  exit 1
+fi
+
+rm -f /tmp/sfs-config-validate.log
+
+echo "[init] Using config: ${PERSIST_CONFIG_DIR}/config.yaml"
+echo "[init] Config source: ${CONFIG_SOURCE}"
+echo "[init] Persistent data root: /data"
+
+echo "[init] Done"

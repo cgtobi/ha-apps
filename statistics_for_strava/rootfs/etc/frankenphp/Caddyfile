@@ -1,0 +1,128 @@
+{
+	http_port 8080
+	auto_https off
+
+	frankenphp {
+		num_threads 3
+		worker {
+			num 2
+			file ./public/index.php
+		}
+	}
+
+	log {
+		output stdout
+		format console
+		level {$CADDY_LOG_LEVEL:ERROR}
+	}
+}
+
+:8080 {
+	root /var/www/public
+	encode zstd br gzip
+
+	# Lightweight health endpoint for HA watchdog checks.
+	handle /healthz {
+		rewrite * /healthz.php
+		php
+	}
+
+	# Serve manifest from public root.
+	handle /manifest.json {
+		root * /var/www/public
+		file_server
+	}
+
+	# Disable Topics tracking if not enabled explicitly: https://github.com/jkarlin/topics
+	header {
+		Cache-Control "no-cache, no-store, must-revalidate"
+		?Permissions-Policy "browsing-topics=()"
+	}
+
+	# Serve dashboard index at / from generated static build output.
+	@rootPath path /
+	handle @rootPath {
+		root * /data/build/html
+		rewrite * /index.html
+		file_server
+	}
+
+	# Cache and serve static assets from Symfony public dir.
+	handle /assets/* {
+		header {
+			Cache-Control "public, max-age=86400"
+		}
+		root * /var/www/public
+		file_server
+	}
+
+	# Serve static .html from build/html
+	@staticBuildFiles {
+		path *.html
+	}
+	handle @staticBuildFiles {
+		root * /data/build/html
+		file_server
+	}
+
+	# Serve badge SVGs - no cache
+	@badges path /files/*-badge.svg
+	handle @badges {
+		header {
+			Cache-Control "no-cache, no-store, must-revalidate"
+		}
+
+		root * /data/storage
+		file_server
+	}
+
+	# Serve other /files/* from storage
+	handle /files/* {
+		header {
+			Cache-Control "public, max-age=31536000, immutable"
+		}
+
+		root * /data/storage
+		file_server
+	}
+
+	# Serve /gear-maintenance/* from storage.
+	handle /gear-maintenance/* {
+		root * /data/storage
+		file_server
+	}
+
+	# Serve everything else through Symfony.
+	handle {
+		@phpRoute {
+			not file {path}
+		}
+
+		rewrite @phpRoute index.php
+
+		@frontController path index.php
+		php @frontController
+	}
+
+	# Handle error codes.
+	handle_errors 403 404 {
+		root /var/www/public
+		rewrite * /{err.status_code}.html
+		file_server
+	}
+
+	handle_errors 5xx {
+		root /var/www/public
+		rewrite * /50x.html
+		file_server
+	}
+
+	handle_errors {
+		respond "{err.status_code} {err.status_text}"
+	}
+
+	# Hide php and yaml file from filesystem
+	file_server {
+		hide *.php *.yaml *.yml
+	}
+}

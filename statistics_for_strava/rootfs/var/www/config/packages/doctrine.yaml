@@ -1,0 +1,26 @@
+doctrine:
+  dbal:
+    url: 'sqlite:////data/storage/database/strava.db?charset=utf8mb4'
+    profiling_collect_backtrace: false
+  orm:
+    enable_native_lazy_objects: true
+    validate_xml_mapping: true
+    naming_strategy: Linkin\Component\DoctrineNamingStrategy\ORM\Mapping\CamelCaseNamingStrategy
+    identity_generation_preferences:
+      Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
+    auto_mapping: true
+    mappings:
+      App:
+        type: attribute
+        is_bundle: false
+        dir: '%kernel.project_dir%/src'
+        prefix: 'App'
+        alias: App
+    controller_resolver:
+      auto_mapping: false
+
+when@test:
+  doctrine:
+    dbal:
+      # "TEST_TOKEN" is typically set by ParaTest for parallel test isolation
+      url: 'sqlite:///%kernel.project_dir%/tests/strava%env(default::TEST_TOKEN)%.db'

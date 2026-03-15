@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.47
+
+- feat: bump Statistics for Strava to v4.7.2 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+
 ## 0.3.46
 
 - feat: add `strava_challenge_history_html` option to import manual challenge/trophy history

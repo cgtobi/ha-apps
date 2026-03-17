@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.49
+
+- fix: enable cron and provide a sane default
+
 ## 0.3.48
 
 - feat: bump Statistics for Strava to v4.7.3 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)

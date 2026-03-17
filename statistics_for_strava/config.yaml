@@ -83,8 +83,8 @@ options:
           expression: "0 14 * * *"
           enabled: false
   caddy_log_level: "ERROR"
-  cron_import_enabled: false
-  cron_import_expression: ""
+  cron_import_enabled: true
+  cron_import_expression: "0 14 * * *"
 
 schema:
   strava_client_id: str

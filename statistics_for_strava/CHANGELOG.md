@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.52
+
+- docs: provide default config template
+
 ## 0.3.51
 
 - fix: export Strava credentials in reconcile

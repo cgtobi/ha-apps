@@ -68,3 +68,52 @@ This add-on runs both required processes inside one container:
 - Application file logs default to `info` level to keep persistent logs readable.
 - Runtime secrets are injected via container environment only; no `.env.local` secrets file is written.
 - Strava webhooks still require public HTTPS reachability to your webhook endpoint.
+
+## Config template
+
+````yaml
+    general:
+      appUrl: "http://CHANGE_ME:8080/"
+      appSubTitle: null
+      profilePictureUrl: null
+      athlete:
+        birthday: 'YYYY-MM-DD'
+        maxHeartRateFormula: "fox"
+        restingHeartRateFormula: "heuristicAgeBased"
+        heartRateZones:
+          mode: relative
+          default:
+            zone1: { from: 50, to: 60 }
+            zone2: { from: 61, to: 70 }
+            zone3: { from: 71, to: 80 }
+            zone4: { from: 81, to: 90 }
+            zone5: { from: 91, to: null }
+        weightHistory:
+          "YYYY-MM-DD": 100
+        ftpHistory:
+          cycling: []
+          running: []
+    appearance:
+      locale: "en_US"
+      unitSystem: "metric"
+      timeFormat: 24
+      dateFormat:
+        short: "d-m-y"
+        normal: "d-m-Y"
+    import:
+      numberOfNewActivitiesToProcessPerImport: 250
+      sportTypesToImport: []
+      activityVisibilitiesToImport: []
+      skipActivitiesRecordedBefore: null
+      activitiesToSkipDuringImport: []
+      optInToSegmentDetailImport: false
+    zwift:
+      level: null
+      racingScore: null
+    daemon:
+      cron:
+        - action: "importDataAndBuildApp"
+          expression: "0 14 * * *"
+          enabled: false
+```
+````

@@ -17,8 +17,27 @@ fi
 
 APP_CONFIG_YAML="$(jq -r '.app_config_yaml // ""' "$OPTIONS_FILE")"
 RECONCILE_RUN_IMPORT="$(jq -r '.reconcile_run_import // true' "$OPTIONS_FILE")"
+STRAVA_CLIENT_ID="$(jq -r '.strava_client_id // ""' "$OPTIONS_FILE")"
+STRAVA_CLIENT_SECRET="$(jq -r '.strava_client_secret // ""' "$OPTIONS_FILE")"
+STRAVA_REFRESH_TOKEN="$(jq -r '.strava_refresh_token // ""' "$OPTIONS_FILE")"
+TZ_VALUE="$(jq -r '.tz // ""' "$OPTIONS_FILE")"
 if [ -z "$APP_CONFIG_YAML" ]; then
   exit 0
+fi
+
+# Reconcile can run during init before s6 environment propagation.
+# Export required runtime vars here so Symfony console commands have credentials.
+if [ -n "$STRAVA_CLIENT_ID" ]; then
+  export STRAVA_CLIENT_ID
+fi
+if [ -n "$STRAVA_CLIENT_SECRET" ]; then
+  export STRAVA_CLIENT_SECRET
+fi
+if [ -n "$STRAVA_REFRESH_TOKEN" ]; then
+  export STRAVA_REFRESH_TOKEN
+fi
+if [ -n "$TZ_VALUE" ]; then
+  export TZ="$TZ_VALUE"
 fi
 
 mkdir -p "$CONFIG_DIR"

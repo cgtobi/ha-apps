@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.51
+
+- fix: export Strava credentials in reconcile
+
 ## 0.3.50
 
 - feat: add configurable `reconcile_run_import` add-on option (default `true`) to control startup import during reconcile

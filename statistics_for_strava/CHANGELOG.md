@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.50
+
+- feat: add configurable `reconcile_run_import` add-on option (default `true`) to control startup import during reconcile
+- feat: run import command before `app:strava:build-files` during reconcile with command auto-detection and diagnostics
+
 ## 0.3.49
 
 - fix: enable cron and provide a sane default

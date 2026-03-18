@@ -1,5 +1,5 @@
 name: "Statistics for Strava"
-version: "0.3.48"
+version: "0.3.50"
 slug: "statistics_for_strava"
 description: "Strava statistics dashboard"
 url: "https://github.com/robiningelbrecht/statistics-for-strava"
@@ -83,8 +83,9 @@ options:
           expression: "0 14 * * *"
           enabled: false
   caddy_log_level: "ERROR"
-  cron_import_enabled: true
-  cron_import_expression: "0 14 * * *"
+  reconcile_run_import: true
+  cron_import_enabled: false
+  cron_import_expression: ""
 
 schema:
   strava_client_id: str
@@ -103,5 +104,6 @@ schema:
   import_opt_in_to_segment_detail_import: bool
   app_config_yaml: str
   caddy_log_level: str
+  reconcile_run_import: bool
   cron_import_enabled: bool
   cron_import_expression: str

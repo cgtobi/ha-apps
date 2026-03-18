@@ -64,6 +64,10 @@ configuration:
     name: Caddy-Loglevel
     description: >-
       Log-Level des integrierten Webservers (z. B. `ERROR`, `INFO`).
+  reconcile_run_import:
+    name: Import bei Startup-Sync ausführen
+    description: >-
+      Führt beim Konfig-Sync vor `app:strava:build-files` einmal einen Import-Befehl aus.
   cron_import_enabled:
     name: Import-Cron aktivieren
     description: >-

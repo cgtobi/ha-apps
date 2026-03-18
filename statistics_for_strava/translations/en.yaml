@@ -64,6 +64,10 @@ configuration:
     name: Caddy log level
     description: >-
       Log verbosity for the embedded web server (for example `ERROR`, `INFO`).
+  reconcile_run_import:
+    name: Run import on startup reconcile
+    description: >-
+      Run one import command during config reconcile before `app:strava:build-files`.
   cron_import_enabled:
     name: Enable import cron
     description: >-

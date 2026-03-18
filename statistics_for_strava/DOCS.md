@@ -20,6 +20,8 @@
 - Optional UI cron override for `importDataAndBuildApp`:
   - `cron_import_expression` (5-field cron string; leave empty to keep YAML value)
   - `cron_import_enabled` (`true`/`false`, used when `cron_import_expression` is set)
+- Optional startup import behavior:
+  - `reconcile_run_import` (`true`/`false`, default `true`; runs one import command during reconcile before build-files)
 - Startup fails fast if any required Strava option is empty.
 - Startup validates `config.yaml` structure and required keys before services start (legacy optional sections are tolerated).
 
@@ -56,6 +58,7 @@ This add-on runs both required processes inside one container:
 - Access the web UI through the configured host port mapping on `8080` (`8080/tcp` is configurable in app network settings).
 - `app_config_yaml` is authoritative: when non-empty, `/data/config/app/config.yaml` is reconciled from add-on options on startup and service restarts.
 - On each config reconcile invocation, the add-on runs Doctrine migrations and then `app:strava:build-files` so extracted UI overrides are applied.
+- When `reconcile_run_import=true`, reconcile runs `app:strava:import-data` once per container startup before build-files.
 - When `strava_challenge_history_html` is non-empty, reconcile writes it to `/data/storage/files/strava-challenge-history.html`.
 - The add-on creates `/var/www/storage -> /data/storage` so upstream challenge import code can read `storage/files/strava-challenge-history.html`.
 - Strava trophy-case HTML import currently requires Strava UI language to be English.

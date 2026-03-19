@@ -53,6 +53,85 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+rewrite_build_files_for_ingress() {
+  BUILD_DIR="/data/build/html"
+  if [ ! -d "$BUILD_DIR" ]; then
+    echo "[reconcile] Skipping ingress path rewrite (missing ${BUILD_DIR})"
+    return 0
+  fi
+
+  rewritten_count=0
+
+  find "$BUILD_DIR" -type f \( -name '*.html' -o -name '*.js' \) -print0 2>/dev/null | while IFS= read -r -d '' file; do
+    tmp_file="${file}.sfs.tmp"
+    if sed -E \
+      -e 's#<script src="./js/ingress-api-shim.js"></script>##g' \
+      -e 's#</head>#<script src="./js/ingress-api-shim.js"></script></head>#g' \
+      -e "s#(href|src|action)=([\"'])/([^/][^\"']*)#\\1=\\2./\\3#g" \
+      -e "s#(href|src|action)=([\"'])/((css|js|api|assets|files|gear-maintenance|img|images)[^\"']*)#\\1=\\2./\\3#g" \
+      -e "s#(href|src|action)=([\"'])/([A-Za-z0-9._-]+\\.html([?][^\"']*)?)#\\1=\\2./\\3#g" \
+      -e "s#(href|src|action)=([\"'])/([A-Za-z0-9._-]+([?][^\"']*)?)#\\1=\\2./\\3#g" \
+      -e "s#(href|src|action)=([\"'])/(manifest\\.json[^\"']*)#\\1=\\2./\\3#g" \
+      -e 's|"/api/|"./api/|g' \
+      -e "s|'/api/|'./api/|g" \
+      -e 's|`/api/|`./api/|g' \
+      -e 's#"/api"#"./api"#g' \
+      -e "s#'/api'#'./api'#g" \
+      -e 's#`/api`#`./api`#g' \
+      -e 's#\\/api\\/#.\\/api\\/#g' \
+      -e 's#"/(api|css|js|assets|files|gear-maintenance|img|images)/#"./\1/#g' \
+      -e "s#'/(api|css|js|assets|files|gear-maintenance|img|images)/#'./\\1/#g" \
+      -e 's#"/([A-Za-z0-9._-]+\.html([?][^"]*)?)"#"./\1"#g' \
+      -e "s#'/([A-Za-z0-9._-]+\\.html([?][^']*)?)'#'./\\1'#g" \
+      -e 's#"/([A-Za-z0-9._-]+([?][^"]*)?)"#"./\1"#g' \
+      -e "s#'/([A-Za-z0-9._-]+([?][^']*)?)'#'./\\1'#g" \
+      -e 's#"/manifest\.json"#"./manifest.json"#g' \
+      -e "s#'/manifest\\.json'#'./manifest.json'#g" \
+      "$file" > "$tmp_file"; then
+      if ! cmp -s "$file" "$tmp_file"; then
+        mv "$tmp_file" "$file"
+        rewritten_count=$((rewritten_count + 1))
+      else
+        rm -f "$tmp_file"
+      fi
+    else
+      rm -f "$tmp_file"
+    fi
+  done
+
+  echo "[reconcile] Ingress path rewrite finished for build files"
+}
+
+rewrite_public_js_for_ingress() {
+  APP_JS_FILE="/var/www/public/js/dist/app.min.js"
+  if [ ! -f "$APP_JS_FILE" ]; then
+    return 0
+  fi
+
+  tmp_file="${APP_JS_FILE}.sfs.tmp"
+  if sed \
+    -e 's|"/api/|"./api/|g' \
+    -e "s|'/api/|'./api/|g" \
+    -e 's|`/api/|`./api/|g' \
+    -e 's#"/api"#"./api"#g' \
+    -e "s#'/api'#'./api'#g" \
+    -e 's#`/api`#`./api`#g' \
+    -e 's#\\/api\\.\\/activity\\/#\\/api\\/activity\\/#g' \
+    -e 's|/api\\./activity/|/api/activity/|g' \
+    -e 's|/api\\./|/api/|g' \
+    -e 's#\\/api\\/#.\\/api\\/#g' \
+    "$APP_JS_FILE" > "$tmp_file"; then
+    if ! cmp -s "$APP_JS_FILE" "$tmp_file"; then
+      mv "$tmp_file" "$APP_JS_FILE"
+      echo "[reconcile] Ingress activity-route rewrite finished for public JS bundle"
+    else
+      rm -f "$tmp_file"
+    fi
+  else
+    rm -f "$tmp_file"
+  fi
+}
+
 CANDIDATE_CONFIG="${CONFIG_FILE}.candidate"
 if ! php /usr/local/share/sfs/render-app-config.php "$OPTIONS_FILE" "$CANDIDATE_CONFIG" >/tmp/sfs-config-render.log 2>&1; then
   echo "FATAL: Could not render app config from add-on options"
@@ -138,6 +217,8 @@ if [ -f /var/www/bin/console ]; then
       sed -n '1,10p' /tmp/sfs-build-files.log || true
     else
       echo "[reconcile] app:strava:build-files finished"
+      rewrite_build_files_for_ingress
+      rewrite_public_js_for_ingress
     fi
   fi
 fi

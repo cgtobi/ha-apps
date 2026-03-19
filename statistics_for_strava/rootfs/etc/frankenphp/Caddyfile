@@ -47,6 +47,28 @@
 		file_server
 	}
 
+	# Compatibility fallback for malformed relative route ".html".
+	@emptyHtmlPath path_regexp emptyhtml ^/\.html$
+	handle @emptyHtmlPath {
+		redir ./dashboard.html 302
+	}
+
+	# Serve static frontend build resources.
+	handle /css/* {
+		root * /var/www/public
+		file_server
+	}
+
+	handle /js/* {
+		root * /var/www/public
+		file_server
+	}
+
+	handle /libraries/* {
+		root * /var/www/public
+		file_server
+	}
+
 	# Cache and serve static assets from Symfony public dir.
 	handle /assets/* {
 		header {

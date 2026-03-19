@@ -1,5 +1,5 @@
 name: "Statistics for Strava"
-version: "0.3.54"
+version: "0.4.30"
 slug: "statistics_for_strava"
 description: "Strava statistics dashboard"
 url: "https://github.com/robiningelbrecht/statistics-for-strava"
@@ -10,7 +10,9 @@ arch:
 startup: services
 boot: auto
 init: false
-ingress: false
+ingress: true
+ingress_port: 8080
+ingress_stream: true
 panel_icon: "mdi:chart-line"
 panel_title: "Statistics for Strava"
 homeassistant: "2025.1.0"

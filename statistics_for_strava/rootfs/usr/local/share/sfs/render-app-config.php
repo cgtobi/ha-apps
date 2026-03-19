@@ -61,6 +61,20 @@ if ($generalAppUrl !== '') {
     $config['general']['appUrl'] = $generalAppUrl;
 }
 
+// In ingress mode the app is mounted under a prefix, so root-absolute URLs
+// (from placeholder appUrl) break static assets/API calls. When no explicit
+// override is provided, normalize placeholder appUrl to a relative base.
+$currentAppUrl = trim((string) (($config['general']['appUrl'] ?? '')));
+if (
+    $generalAppUrl === ''
+    && in_array($currentAppUrl, ['http://CHANGE_ME:8080', 'http://CHANGE_ME:8080/'], true)
+) {
+    if (!isset($config['general']) || !is_array($config['general'])) {
+        $config['general'] = [];
+    }
+    $config['general']['appUrl'] = './';
+}
+
 $generalAppSubtitle = trim((string) ($options['general_app_subtitle'] ?? ''));
 if ($generalAppSubtitle !== '') {
     if (!isset($config['general']) || !is_array($config['general'])) {

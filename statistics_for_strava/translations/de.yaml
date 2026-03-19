@@ -23,7 +23,7 @@ configuration:
   general_app_url:
     name: App-URL
     description: >-
-      Öffentliche absolute URL dieser App. Überschreibt `general.appUrl`, wenn gesetzt.
+      Öffentliche absolute URL dieser App (empfohlen für Direktzugriff/Webhooks). Überschreibt `general.appUrl`, wenn gesetzt.
   general_app_subtitle:
     name: App-Untertitel
     description: >-

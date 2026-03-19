@@ -63,7 +63,7 @@ if [ -r "$CONFIG_FILE" ]; then
     app_url_value="$(printf '%s' "$app_url_line" | sed -E 's/^[[:space:]]*appUrl:[[:space:]]*["'\'']?([^"'\''[:space:]]+).*$/\1/')"
     log "general.appUrl=${app_url_value}"
     if [ "$app_url_value" = "http://CHANGE_ME:8080/" ] || [ "$app_url_value" = "http://CHANGE_ME:8080" ]; then
-      warn "general.appUrl still uses placeholder value"
+      warn "general.appUrl still uses placeholder value (allowed for ingress-only usage; set a real URL for direct access/webhooks)"
     fi
   fi
 fi

@@ -2,6 +2,7 @@
 
 Single-container Home Assistant add-on draft for `statistics-for-strava` with:
 
+- Home Assistant Ingress support (streaming enabled for SSE)
 - direct web UI on configurable host port mapping for internal `8080/tcp`
 - internal daemon scheduling/webhooks process
 - watchdog health check endpoint at `/healthz`
@@ -15,6 +16,6 @@ Startup validates required Strava options (`strava_client_id`, `strava_client_se
 Runtime secrets are provided via container environment (no `.env.local` secret file).
 
 On each config reconciliation invocation, the add-on automatically runs `app:strava:build-files` so UI-config overrides are applied.
-`general.appUrl` can now be set via add-on option `general_app_url` (absolute URL).
+`general.appUrl` can be set via add-on option `general_app_url` (absolute URL). For ingress-only operation, placeholder values are tolerated and normalized to a relative base path, but webhook/direct-access links still require a real public URL.
 
 Historical challenges/trophies can be imported by pasting trophy-case HTML into `strava_challenge_history_html` (Strava page language must be English). See the [docs](https://statistics-for-strava-docs.robiningelbrecht.be/#/getting-started/challenges-and-trophies?id=new-challenges)

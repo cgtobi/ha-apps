@@ -130,9 +130,8 @@ if ! validate_yaml_file "$PERSIST_CONFIG_DIR/config.yaml"; then
 fi
 
 if grep -Eq '^[[:space:]]*appUrl:[[:space:]]*["'\'']?http://CHANGE_ME:8080/?["'\'']?[[:space:]]*$' "$PERSIST_CONFIG_DIR/config.yaml"; then
-  echo "FATAL: general.appUrl still uses placeholder http://CHANGE_ME:8080/"
-  echo "FATAL: Set a real reachable URL in app_config_yaml.general.appUrl and restart"
-  exit 1
+  echo "WARN: general.appUrl still uses placeholder http://CHANGE_ME:8080/"
+  echo "WARN: This is accepted for Home Assistant ingress usage, but set a real public URL for direct access and webhook callbacks"
 fi
 
 rm -f /tmp/sfs-config-validate.log

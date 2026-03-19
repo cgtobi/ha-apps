@@ -7,7 +7,7 @@
 - `strava_refresh_token`
 - `tz`
 - `strava_challenge_history_html` (optional): paste HTML source from your Strava trophy-case page to import historical challenges/trophies
-- `app_config_yaml.general.appUrl` must be set to a real reachable URL (placeholder values are rejected at startup)
+- `app_config_yaml.general.appUrl` must be a non-empty string
 - Optional UI overrides (leave empty/zero to keep YAML values):
   - `general_app_url` (absolute URL; when set, overrides `general.appUrl`)
   - `general_app_subtitle`
@@ -55,7 +55,10 @@ This add-on runs both required processes inside one container:
 
 ## Notes
 
-- Access the web UI through the configured host port mapping on `8080` (`8080/tcp` is configurable in app network settings).
+- Home Assistant Ingress is enabled and is the recommended way to access the UI from HA.
+- Direct port access via `8080/tcp` remains available for external/reverse-proxy access.
+- If `general.appUrl` remains `http://CHANGE_ME:8080/`, startup continues (for ingress compatibility), but webhook/public URL features should use a real public URL.
+- During config render, placeholder `general.appUrl` is normalized to `./` (unless `general_app_url` is set) so ingress-prefixed asset/API paths stay under the ingress base path.
 - `app_config_yaml` is authoritative: when non-empty, `/data/config/app/config.yaml` is reconciled from add-on options on startup and service restarts.
 - On each config reconcile invocation, the add-on runs Doctrine migrations and then `app:strava:build-files` so extracted UI overrides are applied.
 - When `reconcile_run_import=true`, reconcile runs `app:strava:import-data` once per container startup before build-files.
@@ -67,7 +70,7 @@ This add-on runs both required processes inside one container:
 - Init logs report which config source was used: `existing`, `options`, or `legacy`.
 - Application file logs default to `info` level to keep persistent logs readable.
 - Runtime secrets are injected via container environment only; no `.env.local` secrets file is written.
-- Strava webhooks still require public HTTPS reachability to your webhook endpoint.
+- Strava webhooks still require public HTTPS reachability to your webhook endpoint (ingress URL is not a public webhook endpoint).
 
 ## Config template
 

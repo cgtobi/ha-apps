@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.38
+
+- fix: extend ingress runtime shim to normalize client-side navigation URLs (`history.pushState`, `history.replaceState`, and root-absolute anchor hrefs) so page routes like `/heatmap` and `/month/...` stay under ingress prefix
+
 ## 0.4.37
 
 - fix: handle upstream mutex contention (`Lock "importDataOrBuildApp" is already acquired`) gracefully during reconcile by treating it as a skipped/deferred run for `app:strava:import-data` and `app:strava:build-files` instead of a hard failure

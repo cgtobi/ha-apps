@@ -78,4 +78,47 @@
     };
     window.EventSource.prototype = NativeEventSource.prototype;
   }
+
+  if (window.history && typeof window.history.pushState === "function") {
+    var originalPushState = window.history.pushState;
+    window.history.pushState = function (state, title, url) {
+      if (typeof url === "string") {
+        url = normalize(url);
+      }
+      return originalPushState.call(this, state, title, url);
+    };
+  }
+
+  if (window.history && typeof window.history.replaceState === "function") {
+    var originalReplaceState = window.history.replaceState;
+    window.history.replaceState = function (state, title, url) {
+      if (typeof url === "string") {
+        url = normalize(url);
+      }
+      return originalReplaceState.call(this, state, title, url);
+    };
+  }
+
+  if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+    document.addEventListener(
+      "click",
+      function (event) {
+        if (!event || !event.target || typeof event.target.closest !== "function") {
+          return;
+        }
+        var anchor = event.target.closest("a[href]");
+        if (!anchor) {
+          return;
+        }
+        var href = anchor.getAttribute("href");
+        if (!href || href.indexOf("#") === 0 || href.indexOf("javascript:") === 0 || href.indexOf("mailto:") === 0) {
+          return;
+        }
+        if (href.indexOf("/") === 0 && href.indexOf("//") !== 0 && href.indexOf("/api/hassio_ingress/") !== 0) {
+          anchor.setAttribute("href", "." + href);
+        }
+      },
+      true
+    );
+  }
 })();

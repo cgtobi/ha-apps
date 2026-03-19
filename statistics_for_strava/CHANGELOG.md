@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.36
+
+- fix: run ingress path rewrites even when `app:strava:build-files` fails, so existing generated HTML/JS still get ingress-safe relative asset/API paths
+
+## 0.4.35
+
+- chore: add UTC ISO-8601 timestamps to reconcile log lines (`[reconcile]`, `WARN`, `FATAL`) for easier startup-sequence diagnostics
+
+## 0.4.34
+
+- fix: remove aggressive reconcile API token rewrites from generated files and rely on runtime ingress shim + generic href/src/action normalization; keeps upstream `relativeUrl('api/...')` output intact
+
+## 0.4.33
+
+- fix: make ingress runtime shim normalize generic root-absolute in-app requests (`/...`) to relative (`./...`) while preserving `/api/hassio_ingress/...`, fixing remaining route 404s like `/month/...`
+
+## 0.4.32
+
+- fix: normalize root-absolute heatmap routes (`/heatmap/...` and same-origin absolute forms) in ingress runtime shim to keep heatmap requests under ingress prefix
+
 ## 0.4.1
 
 - chore: improve reconcile logging when `app:strava:build-files` fails (include exit code, first/last 40 log lines, and persist full log to `/data/runtime/sfs-build-files.last.log`)

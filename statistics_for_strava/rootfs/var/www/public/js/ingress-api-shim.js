@@ -12,23 +12,22 @@
     if (url.indexOf("/api/hassio_ingress/") === 0) {
       return url;
     }
-    if (url.indexOf("/api/") === 0) {
-      return "." + url;
-    }
-    if (url.indexOf("/activity/") === 0) {
-      return "." + url;
-    }
-    if (url.indexOf("/segment/") === 0) {
-      return "." + url;
-    }
     if (url.indexOf("api./") === 0) {
       return "./api/" + url.substring(5);
     }
-    if (url.indexOf("activity/") === 0) {
+    // Normalize app-relative route fragments that miss "./" prefix.
+    if (
+      url.indexOf("api/") === 0 ||
+      url.indexOf("activity/") === 0 ||
+      url.indexOf("segment/") === 0 ||
+      url.indexOf("heatmap/") === 0 ||
+      url.indexOf("month/") === 0
+    ) {
       return "./" + url;
     }
-    if (url.indexOf("segment/") === 0) {
-      return "./" + url;
+    // Generic ingress-safe normalization for root-absolute in-app requests.
+    if (url.indexOf("/") === 0 && url.indexOf("//") !== 0) {
+      return "." + url;
     }
     try {
       var origin = window.location && window.location.origin ? window.location.origin : "";
@@ -38,13 +37,7 @@
       if (origin && url.indexOf(origin + "/api/hassio_ingress/") === 0) {
         return url;
       }
-      if (origin && url.indexOf(origin + "/api/") === 0) {
-        return "." + url.substring(origin.length);
-      }
-      if (origin && url.indexOf(origin + "/activity/") === 0) {
-        return "." + url.substring(origin.length);
-      }
-      if (origin && url.indexOf(origin + "/segment/") === 0) {
+      if (origin && url.indexOf(origin + "/") === 0) {
         return "." + url.substring(origin.length);
       }
     } catch (_e) {

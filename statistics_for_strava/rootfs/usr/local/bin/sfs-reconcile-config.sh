@@ -11,6 +11,22 @@ STATUS_FILE="${RUNTIME_DIR}/reconcile.status"
 STARTUP_MARKER_FILE="${RUNTIME_DIR}/health.startup"
 IMPORT_STARTUP_STAMP_FILE="${RUNTIME_DIR}/reconcile.import.startup"
 
+timestamp_utc() {
+  date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+log_msg() {
+  printf '%s %s\n' "$(timestamp_utc)" "$*"
+}
+
+warn_msg() {
+  log_msg "WARN: $*"
+}
+
+fatal_msg() {
+  log_msg "FATAL: $*"
+}
+
 if [ ! -f "$OPTIONS_FILE" ]; then
   exit 0
 fi
@@ -56,7 +72,7 @@ trap cleanup EXIT INT TERM
 rewrite_build_files_for_ingress() {
   BUILD_DIR="/data/build/html"
   if [ ! -d "$BUILD_DIR" ]; then
-    echo "[reconcile] Skipping ingress path rewrite (missing ${BUILD_DIR})"
+    log_msg "[reconcile] Skipping ingress path rewrite (missing ${BUILD_DIR})"
     return 0
   fi
 
@@ -72,13 +88,6 @@ rewrite_build_files_for_ingress() {
       -e "s#(href|src|action)=([\"'])/([A-Za-z0-9._-]+\\.html([?][^\"']*)?)#\\1=\\2./\\3#g" \
       -e "s#(href|src|action)=([\"'])/([A-Za-z0-9._-]+([?][^\"']*)?)#\\1=\\2./\\3#g" \
       -e "s#(href|src|action)=([\"'])/(manifest\\.json[^\"']*)#\\1=\\2./\\3#g" \
-      -e 's|"/api/|"./api/|g' \
-      -e "s|'/api/|'./api/|g" \
-      -e 's|`/api/|`./api/|g' \
-      -e 's#"/api"#"./api"#g' \
-      -e "s#'/api'#'./api'#g" \
-      -e 's#`/api`#`./api`#g' \
-      -e 's#\\/api\\/#.\\/api\\/#g' \
       -e 's#"/(api|css|js|assets|files|gear-maintenance|img|images)/#"./\1/#g' \
       -e "s#'/(api|css|js|assets|files|gear-maintenance|img|images)/#'./\\1/#g" \
       -e 's#"/([A-Za-z0-9._-]+\.html([?][^"]*)?)"#"./\1"#g' \
@@ -99,7 +108,7 @@ rewrite_build_files_for_ingress() {
     fi
   done
 
-  echo "[reconcile] Ingress path rewrite finished for build files"
+  log_msg "[reconcile] Ingress path rewrite finished for build files"
 }
 
 rewrite_public_js_for_ingress() {
@@ -110,20 +119,12 @@ rewrite_public_js_for_ingress() {
 
   tmp_file="${APP_JS_FILE}.sfs.tmp"
   if sed \
-    -e 's|"/api/|"./api/|g' \
-    -e "s|'/api/|'./api/|g" \
-    -e 's|`/api/|`./api/|g' \
-    -e 's#"/api"#"./api"#g' \
-    -e "s#'/api'#'./api'#g" \
-    -e 's#`/api`#`./api`#g' \
-    -e 's#\\/api\\.\\/activity\\/#\\/api\\/activity\\/#g' \
-    -e 's|/api\\./activity/|/api/activity/|g' \
+    -e 's#\\/api\\.\\/#\\/api\\/#g' \
     -e 's|/api\\./|/api/|g' \
-    -e 's#\\/api\\/#.\\/api\\/#g' \
     "$APP_JS_FILE" > "$tmp_file"; then
     if ! cmp -s "$APP_JS_FILE" "$tmp_file"; then
       mv "$tmp_file" "$APP_JS_FILE"
-      echo "[reconcile] Ingress activity-route rewrite finished for public JS bundle"
+      log_msg "[reconcile] Ingress activity-route rewrite finished for public JS bundle"
     else
       rm -f "$tmp_file"
     fi
@@ -134,14 +135,14 @@ rewrite_public_js_for_ingress() {
 
 CANDIDATE_CONFIG="${CONFIG_FILE}.candidate"
 if ! php /usr/local/share/sfs/render-app-config.php "$OPTIONS_FILE" "$CANDIDATE_CONFIG" >/tmp/sfs-config-render.log 2>&1; then
-  echo "FATAL: Could not render app config from add-on options"
+  fatal_msg "Could not render app config from add-on options"
   sed -n '1,5p' /tmp/sfs-config-render.log || true
   rm -f "$CANDIDATE_CONFIG"
   exit 1
 fi
 
 if ! php /usr/local/share/sfs/validate-app-config.php "$CANDIDATE_CONFIG" >/tmp/sfs-config-validate.log 2>&1; then
-  echo "FATAL: Invalid app_config_yaml in add-on options"
+  fatal_msg "Invalid app_config_yaml in add-on options"
   sed -n '1,5p' /tmp/sfs-config-validate.log || true
   rm -f "$CANDIDATE_CONFIG"
   exit 1
@@ -164,22 +165,22 @@ fi
 CHALLENGE_HISTORY_HTML="$(jq -r '.strava_challenge_history_html // ""' "$OPTIONS_FILE")"
 if [ -n "$CHALLENGE_HISTORY_HTML" ]; then
   printf '%s\n' "$CHALLENGE_HISTORY_HTML" > "$CHALLENGE_HISTORY_FILE"
-  echo "[reconcile] Updated ${CHALLENGE_HISTORY_FILE} from add-on options"
+  log_msg "[reconcile] Updated ${CHALLENGE_HISTORY_FILE} from add-on options"
 fi
 
 if [ -f /var/www/bin/console ]; then
-  echo "[reconcile] Running doctrine migrations"
+  log_msg "[reconcile] Running doctrine migrations"
   if ! (cd /var/www && php bin/console doctrine:migrations:migrate --no-interaction >/tmp/sfs-migrate.log 2>&1); then
-    echo "WARN: Failed to run doctrine migrations during config reconcile"
+    warn_msg "Failed to run doctrine migrations during config reconcile"
     sed -n '1,10p' /tmp/sfs-migrate.log || true
   else
-    echo "[reconcile] Doctrine migrations finished"
+    log_msg "[reconcile] Doctrine migrations finished"
     IMPORT_COMMAND="app:strava:import-data"
 
     RUN_IMPORT_NOW="true"
     if [ "$RECONCILE_RUN_IMPORT" != "true" ]; then
       RUN_IMPORT_NOW="false"
-      echo "[reconcile] Skipping import before build-files (reconcile_run_import=false)"
+      log_msg "[reconcile] Skipping import before build-files (reconcile_run_import=false)"
     elif [ -r "$STARTUP_MARKER_FILE" ]; then
       CURRENT_STARTUP_MARKER="$(tr -d '\n' < "$STARTUP_MARKER_FILE" || true)"
       LAST_IMPORT_MARKER=""
@@ -189,7 +190,7 @@ if [ -f /var/www/bin/console ]; then
 
       if [ -n "$CURRENT_STARTUP_MARKER" ] && [ "$CURRENT_STARTUP_MARKER" = "$LAST_IMPORT_MARKER" ]; then
         RUN_IMPORT_NOW="false"
-        echo "[reconcile] Skipping import before build-files (already attempted for this startup)"
+        log_msg "[reconcile] Skipping import before build-files (already attempted for this startup)"
       fi
     fi
 
@@ -200,33 +201,36 @@ if [ -f /var/www/bin/console ]; then
     fi
 
     if [ "$RUN_IMPORT_NOW" = "true" ]; then
-      echo "[reconcile] Running ${IMPORT_COMMAND}"
+      log_msg "[reconcile] Running ${IMPORT_COMMAND}"
       if ! (cd /var/www && php bin/console "$IMPORT_COMMAND" >/tmp/sfs-import.log 2>&1); then
-        echo "WARN: Failed to run ${IMPORT_COMMAND} during config reconcile"
+        warn_msg "Failed to run ${IMPORT_COMMAND} during config reconcile"
         sed -n '1,20p' /tmp/sfs-import.log || true
       else
-        echo "[reconcile] ${IMPORT_COMMAND} finished"
+        log_msg "[reconcile] ${IMPORT_COMMAND} finished"
       fi
     else
       :
     fi
 
-    echo "[reconcile] Running app:strava:build-files"
+    log_msg "[reconcile] Running app:strava:build-files"
     if (cd /var/www && php bin/console app:strava:build-files >/tmp/sfs-build-files.log 2>&1); then
-      echo "[reconcile] app:strava:build-files finished"
+      log_msg "[reconcile] app:strava:build-files finished"
       rewrite_build_files_for_ingress
       rewrite_public_js_for_ingress
     else
       BUILD_RC=$?
-      echo "WARN: Failed to run app:strava:build-files during config reconcile (exit_code=${BUILD_RC})"
+      warn_msg "Failed to run app:strava:build-files during config reconcile (exit_code=${BUILD_RC})"
       cp /tmp/sfs-build-files.log /data/runtime/sfs-build-files.last.log 2>/dev/null || true
       printf 'failed_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
       printf 'exit_code=%s\n' "$BUILD_RC" >> /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
-      echo "[reconcile] build-files log (first 40 lines)"
+      log_msg "[reconcile] build-files log (first 40 lines)"
       sed -n '1,40p' /tmp/sfs-build-files.log || true
-      echo "[reconcile] build-files log (last 40 lines)"
+      log_msg "[reconcile] build-files log (last 40 lines)"
       tail -n 40 /tmp/sfs-build-files.log || true
-      echo "[reconcile] Full build-files log saved to /data/runtime/sfs-build-files.last.log"
+      log_msg "[reconcile] Full build-files log saved to /data/runtime/sfs-build-files.last.log"
+      log_msg "[reconcile] Running ingress rewrites on existing files despite build-files failure"
+      rewrite_build_files_for_ingress
+      rewrite_public_js_for_ingress
     fi
   fi
 fi

@@ -212,13 +212,21 @@ if [ -f /var/www/bin/console ]; then
     fi
 
     echo "[reconcile] Running app:strava:build-files"
-    if ! (cd /var/www && php bin/console app:strava:build-files >/tmp/sfs-build-files.log 2>&1); then
-      echo "WARN: Failed to run app:strava:build-files during config reconcile"
-      sed -n '1,10p' /tmp/sfs-build-files.log || true
-    else
+    if (cd /var/www && php bin/console app:strava:build-files >/tmp/sfs-build-files.log 2>&1); then
       echo "[reconcile] app:strava:build-files finished"
       rewrite_build_files_for_ingress
       rewrite_public_js_for_ingress
+    else
+      BUILD_RC=$?
+      echo "WARN: Failed to run app:strava:build-files during config reconcile (exit_code=${BUILD_RC})"
+      cp /tmp/sfs-build-files.log /data/runtime/sfs-build-files.last.log 2>/dev/null || true
+      printf 'failed_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
+      printf 'exit_code=%s\n' "$BUILD_RC" >> /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
+      echo "[reconcile] build-files log (first 40 lines)"
+      sed -n '1,40p' /tmp/sfs-build-files.log || true
+      echo "[reconcile] build-files log (last 40 lines)"
+      tail -n 40 /tmp/sfs-build-files.log || true
+      echo "[reconcile] Full build-files log saved to /data/runtime/sfs-build-files.last.log"
     fi
   fi
 fi

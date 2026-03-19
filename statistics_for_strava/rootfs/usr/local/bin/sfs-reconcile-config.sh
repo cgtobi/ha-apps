@@ -27,6 +27,25 @@ fatal_msg() {
   log_msg "FATAL: $*"
 }
 
+is_upstream_mutex_conflict() {
+  log_file="$1"
+  grep -Fq 'Lock "importDataOrBuildApp" is already acquired' "$log_file"
+}
+
+run_console_command() {
+  log_file="$1"
+  shift
+  if (cd /var/www && php bin/console "$@" >"$log_file" 2>&1); then
+    return 0
+  fi
+  cmd_rc=$?
+  if is_upstream_mutex_conflict "$log_file"; then
+    # Reserve rc=10 for upstream mutex contention so callers can handle it explicitly.
+    return 10
+  fi
+  return "$cmd_rc"
+}
+
 if [ ! -f "$OPTIONS_FILE" ]; then
   exit 0
 fi
@@ -202,24 +221,33 @@ if [ -f /var/www/bin/console ]; then
 
     if [ "$RUN_IMPORT_NOW" = "true" ]; then
       log_msg "[reconcile] Running ${IMPORT_COMMAND}"
-      if ! (cd /var/www && php bin/console "$IMPORT_COMMAND" >/tmp/sfs-import.log 2>&1); then
-        warn_msg "Failed to run ${IMPORT_COMMAND} during config reconcile"
-        sed -n '1,20p' /tmp/sfs-import.log || true
-      else
+      if run_console_command /tmp/sfs-import.log "$IMPORT_COMMAND"; then
         log_msg "[reconcile] ${IMPORT_COMMAND} finished"
+      else
+        IMPORT_RC=$?
+        if [ "$IMPORT_RC" -eq 10 ]; then
+          warn_msg "Skipped ${IMPORT_COMMAND} during config reconcile (mutex already acquired by another process)"
+        else
+          warn_msg "Failed to run ${IMPORT_COMMAND} during config reconcile (exit_code=${IMPORT_RC})"
+        fi
+        sed -n '1,20p' /tmp/sfs-import.log || true
       fi
     else
       :
     fi
 
     log_msg "[reconcile] Running app:strava:build-files"
-    if (cd /var/www && php bin/console app:strava:build-files >/tmp/sfs-build-files.log 2>&1); then
+    if run_console_command /tmp/sfs-build-files.log app:strava:build-files; then
       log_msg "[reconcile] app:strava:build-files finished"
       rewrite_build_files_for_ingress
       rewrite_public_js_for_ingress
     else
       BUILD_RC=$?
-      warn_msg "Failed to run app:strava:build-files during config reconcile (exit_code=${BUILD_RC})"
+      if [ "$BUILD_RC" -eq 10 ]; then
+        warn_msg "Skipped app:strava:build-files during config reconcile (mutex already acquired by another process)"
+      else
+        warn_msg "Failed to run app:strava:build-files during config reconcile (exit_code=${BUILD_RC})"
+      fi
       cp /tmp/sfs-build-files.log /data/runtime/sfs-build-files.last.log 2>/dev/null || true
       printf 'failed_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
       printf 'exit_code=%s\n' "$BUILD_RC" >> /data/runtime/sfs-build-files.last.meta 2>/dev/null || true

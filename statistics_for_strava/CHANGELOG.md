@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.37
+
+- fix: handle upstream mutex contention (`Lock "importDataOrBuildApp" is already acquired`) gracefully during reconcile by treating it as a skipped/deferred run for `app:strava:import-data` and `app:strava:build-files` instead of a hard failure
+
 ## 0.4.36
 
 - fix: run ingress path rewrites even when `app:strava:build-files` fails, so existing generated HTML/JS still get ingress-safe relative asset/API paths

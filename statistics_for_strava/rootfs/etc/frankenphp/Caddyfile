@@ -53,6 +53,12 @@
 		redir ./dashboard.html 302
 	}
 
+	# SPA deep-link compatibility: route direct path hits to hash-based dashboard routes.
+	@spaDeepLink path_regexp spadeeplink ^/(heatmap|month/[^?]+|activity/[^?]+|segment/[^?]+)$
+	handle @spaDeepLink {
+		redir ./dashboard#{uri} 302
+	}
+
 	# Serve static frontend build resources.
 	handle /css/* {
 		root * /var/www/public

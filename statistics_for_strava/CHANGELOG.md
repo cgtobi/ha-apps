@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.39
+
+- fix: add Caddy SPA deep-link redirects for `/heatmap`, `/month/...`, `/activity/...`, and `/segment/...` to `./dashboard#...` so direct path navigation works under ingress and mounts the expected view
+
 ## 0.4.38
 
 - fix: extend ingress runtime shim to normalize client-side navigation URLs (`history.pushState`, `history.replaceState`, and root-absolute anchor hrefs) so page routes like `/heatmap` and `/month/...` stay under ingress prefix

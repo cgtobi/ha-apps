@@ -53,13 +53,6 @@
 		redir ./dashboard.html 302
 	}
 
-	# SPA deep-link compatibility for top-level routes only.
-	# Do not catch *.html detail endpoints used by modal fetches.
-	@spaDeepLink path_regexp spadeeplink ^/(heatmap|month|activity|segment)$
-	handle @spaDeepLink {
-		redir ./dashboard#{uri} 302
-	}
-
 	# Serve static frontend build resources.
 	handle /css/* {
 		root * /var/www/public

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.44
+
+- fix: remove Caddy SPA deep-link redirect block to restore upstream path-based page mounting (notably `/heatmap`) and avoid forcing hash-route redirects that break heatmap initialization
+
 ## 0.4.43
 
 - chore: add UTC timestamps to remaining startup/service logs (`start.sh`, `00-init`, `sfs-startup-preflight.sh`, `services.d/web/run`, `services.d/daemon/run`) for consistent log chronology

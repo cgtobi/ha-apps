@@ -152,6 +152,13 @@ rewrite_public_js_for_ingress() {
   fi
 }
 
+if [ "${SFS_RECONCILE_REWRITE_ONLY:-0}" = "1" ]; then
+  log_msg "[reconcile] Rewrite-only mode: applying ingress rewrites"
+  rewrite_build_files_for_ingress
+  rewrite_public_js_for_ingress
+  exit 0
+fi
+
 CANDIDATE_CONFIG="${CONFIG_FILE}.candidate"
 if ! php /usr/local/share/sfs/render-app-config.php "$OPTIONS_FILE" "$CANDIDATE_CONFIG" >/tmp/sfs-config-render.log 2>&1; then
   fatal_msg "Could not render app config from add-on options"

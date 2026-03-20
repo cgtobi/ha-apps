@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.40
+
+- fix: add reconcile `rewrite-only` mode and a background ingress rewrite loop in `start.sh` so cron-triggered rebuilds keep ingress-safe paths applied after daemon updates files
+
 ## 0.4.39
 
 - fix: add Caddy SPA deep-link redirects for `/heatmap`, `/month/...`, `/activity/...`, and `/segment/...` to `./dashboard#...` so direct path navigation works under ingress and mounts the expected view

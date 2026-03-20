@@ -17,6 +17,16 @@ run_daemon_forever() {
   done
 }
 
+run_ingress_rewrite_forever() {
+  while true; do
+    if ! SFS_RECONCILE_REWRITE_ONLY=1 sh /usr/local/bin/sfs-reconcile-config.sh >/tmp/sfs-rewrite-loop.log 2>&1; then
+      echo "[start] $(timestamp) ingress rewrite loop failed; showing recent output"
+      tail -n 20 /tmp/sfs-rewrite-loop.log || true
+    fi
+    sleep 30
+  done
+}
+
 echo "[start] Running init"
 sh /etc/cont-init.d/00-init
 
@@ -30,6 +40,9 @@ if [ -f "$OPTIONS_FILE" ]; then
 fi
 
 sh /usr/local/bin/sfs-startup-preflight.sh
+
+echo "[start] Launching ingress rewrite loop"
+run_ingress_rewrite_forever &
 
 echo "[start] Launching daemon"
 run_daemon_forever &

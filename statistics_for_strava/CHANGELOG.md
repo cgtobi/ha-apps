@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.62
+
+- fix: stop installing heatmap history/click navigation hooks; keep only render-heal/fallback logic so landing route behavior remains upstream-driven
+
 ## 0.4.61
 
 - fix: add heatmap fallback renderer in ingress shim that mounts Leaflet directly from `data-leaflet-routes` when upstream heatmap init leaves `#heatmap` empty (routes data + Leaflet available but no mount)

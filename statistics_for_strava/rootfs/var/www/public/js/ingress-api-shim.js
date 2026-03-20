@@ -494,8 +494,7 @@
   }
 
   if (typeof document !== "undefined") {
-    installHeatmapHistoryRemap();
-    installHeatmapClickFallback();
+    // Keep routing behavior upstream-driven; only heal rendering failures.
     rewriteHeatmapAnchors();
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", maybeHealHeatmapBlankRender, { once: true });

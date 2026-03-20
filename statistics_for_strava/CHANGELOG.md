@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.42
+
+- fix: narrow Caddy SPA deep-link redirects to top-level routes only (`/heatmap`, `/month`, `/activity`, `/segment`) so modal/detail HTML fetches like `/activity/*.html`, `/segment/*.html`, and `/month/*.html` are no longer intercepted
+
+## 0.4.41
+
+- fix: remove history/anchor navigation interception from ingress shim (keep only request normalization) to avoid regressions on direct hash-routed pages such as `/dashboard#/heatmap`
+
 ## 0.4.40
 
 - fix: add reconcile `rewrite-only` mode and a background ingress rewrite loop in `start.sh` so cron-triggered rebuilds keep ingress-safe paths applied after daemon updates files

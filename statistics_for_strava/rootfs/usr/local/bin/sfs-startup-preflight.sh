@@ -1,12 +1,16 @@
 #!/bin/sh
 set -eu
 
+timestamp() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
 log() {
-  echo "[preflight] $*"
+  echo "$(timestamp) [preflight] $*"
 }
 
 warn() {
-  echo "[preflight] WARN: $*"
+  echo "$(timestamp) [preflight] WARN: $*"
 }
 
 CONFIG_FILE="/data/config/app/config.yaml"
@@ -70,7 +74,7 @@ fi
 
 if [ -r "$RECONCILE_STATUS" ]; then
   log "Reconcile status:"
-  sed -n '1,3p' "$RECONCILE_STATUS" | sed 's/^/[preflight]   /'
+  sed -n '1,3p' "$RECONCILE_STATUS" | sed "s/^/$(timestamp) [preflight]   /"
 else
   warn "Reconcile status file missing: ${RECONCILE_STATUS}"
 fi

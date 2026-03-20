@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.43
+
+- chore: add UTC timestamps to remaining startup/service logs (`start.sh`, `00-init`, `sfs-startup-preflight.sh`, `services.d/web/run`, `services.d/daemon/run`) for consistent log chronology
+
 ## 0.4.42
 
 - fix: narrow Caddy SPA deep-link redirects to top-level routes only (`/heatmap`, `/month`, `/activity`, `/segment`) so modal/detail HTML fetches like `/activity/*.html`, `/segment/*.html`, and `/month/*.html` are no longer intercepted

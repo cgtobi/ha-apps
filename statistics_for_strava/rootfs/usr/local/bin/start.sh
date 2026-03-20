@@ -5,6 +5,10 @@ timestamp() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
 
+log() {
+  echo "$(timestamp) [start] $*"
+}
+
 run_daemon_forever() {
   while true; do
     if sh /etc/services.d/daemon/run; then
@@ -12,7 +16,7 @@ run_daemon_forever() {
     else
       exit_code=$?
     fi
-    echo "[start] $(timestamp) daemon exited with code ${exit_code}; restarting in 5s"
+    log "daemon exited with code ${exit_code}; restarting in 5s"
     sleep 5
   done
 }
@@ -20,14 +24,14 @@ run_daemon_forever() {
 run_ingress_rewrite_forever() {
   while true; do
     if ! SFS_RECONCILE_REWRITE_ONLY=1 sh /usr/local/bin/sfs-reconcile-config.sh >/tmp/sfs-rewrite-loop.log 2>&1; then
-      echo "[start] $(timestamp) ingress rewrite loop failed; showing recent output"
+      log "ingress rewrite loop failed; showing recent output"
       tail -n 20 /tmp/sfs-rewrite-loop.log || true
     fi
     sleep 30
   done
 }
 
-echo "[start] Running init"
+log "Running init"
 sh /etc/cont-init.d/00-init
 
 OPTIONS_FILE="/data/options.json"
@@ -41,11 +45,11 @@ fi
 
 sh /usr/local/bin/sfs-startup-preflight.sh
 
-echo "[start] Launching ingress rewrite loop"
+log "Launching ingress rewrite loop"
 run_ingress_rewrite_forever &
 
-echo "[start] Launching daemon"
+log "Launching daemon"
 run_daemon_forever &
 
-echo "[start] Launching web"
+log "Launching web"
 exec sh /etc/services.d/web/run

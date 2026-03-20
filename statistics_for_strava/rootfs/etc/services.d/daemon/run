@@ -1,7 +1,15 @@
 #!/usr/bin/with-contenv sh
 set -eu
 
-echo "[daemon] Starting Statistics for Strava daemon"
+timestamp() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+log() {
+  echo "$(timestamp) [daemon] $*"
+}
+
+log "Starting Statistics for Strava daemon"
 
 RUNTIME_DIR="/data/runtime"
 PID_FILE="${RUNTIME_DIR}/daemon.pid"

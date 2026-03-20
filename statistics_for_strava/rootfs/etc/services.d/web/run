@@ -1,7 +1,15 @@
 #!/usr/bin/with-contenv sh
 set -eu
 
-echo "[web] Starting web server on :8080"
+timestamp() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+log() {
+  echo "$(timestamp) [web] $*"
+}
+
+log "Starting web server on :8080"
 
 SOURCE_CONFIG_DIR="/data/config/app"
 TARGET_CONFIG_DIR="/var/www/config/app"

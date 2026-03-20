@@ -1,7 +1,23 @@
 #!/usr/bin/with-contenv sh
 set -eu
 
-echo "[init] Preparing persistent storage"
+timestamp() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+log() {
+  echo "$(timestamp) [init] $*"
+}
+
+warn() {
+  echo "$(timestamp) [init] WARN: $*"
+}
+
+fatal() {
+  echo "$(timestamp) [init] FATAL: $*"
+}
+
+log "Preparing persistent storage"
 
 OPTIONS_FILE="/data/options.json"
 HA_ADDON_CONFIG_DIR="/addon_configs/local_statistics_for_strava"
@@ -64,14 +80,14 @@ require_non_empty() {
   key="$1"
   value="$2"
   if [ -z "$value" ]; then
-    echo "FATAL: Required option '${key}' is empty"
+    fatal "Required option '${key}' is empty"
     exit 1
   fi
 }
 
 # Write runtime env expected by Symfony app.
 if [ ! -f "$OPTIONS_FILE" ]; then
-  echo "FATAL: Missing required ${OPTIONS_FILE}"
+  fatal "Missing required ${OPTIONS_FILE}"
   exit 1
 fi
 
@@ -95,7 +111,7 @@ CONFIG_SOURCE="existing"
 if [ -n "$APP_CONFIG_YAML" ]; then
   # Keep one authoritative reconciliation path used by init + services.
   if ! sh /usr/local/bin/sfs-reconcile-config.sh; then
-    echo "FATAL: Could not reconcile /data/config/app/config.yaml from /data/options.json"
+    fatal "Could not reconcile /data/config/app/config.yaml from /data/options.json"
     exit 1
   fi
   CONFIG_SOURCE="options"
@@ -118,26 +134,26 @@ for env_dir in "$S6_ENV_DIR_1" "$S6_ENV_DIR_2"; do
 done
 
 if [ ! -f "$PERSIST_CONFIG_DIR/config.yaml" ]; then
-  echo "FATAL: Missing required ${PERSIST_CONFIG_DIR}/config.yaml"
-  echo "FATAL: Provide app_config_yaml in add-on options or place config at ${PERSIST_CONFIG_DIR}/config.yaml"
+  fatal "Missing required ${PERSIST_CONFIG_DIR}/config.yaml"
+  fatal "Provide app_config_yaml in add-on options or place config at ${PERSIST_CONFIG_DIR}/config.yaml"
   exit 1
 fi
 
 if ! validate_yaml_file "$PERSIST_CONFIG_DIR/config.yaml"; then
-  echo "FATAL: Invalid ${PERSIST_CONFIG_DIR}/config.yaml structure"
+  fatal "Invalid ${PERSIST_CONFIG_DIR}/config.yaml structure"
   sed -n '1,5p' /tmp/sfs-config-validate.log || true
   exit 1
 fi
 
 if grep -Eq '^[[:space:]]*appUrl:[[:space:]]*["'\'']?http://CHANGE_ME:8080/?["'\'']?[[:space:]]*$' "$PERSIST_CONFIG_DIR/config.yaml"; then
-  echo "WARN: general.appUrl still uses placeholder http://CHANGE_ME:8080/"
-  echo "WARN: This is accepted for Home Assistant ingress usage, but set a real public URL for direct access and webhook callbacks"
+  warn "general.appUrl still uses placeholder http://CHANGE_ME:8080/"
+  warn "This is accepted for Home Assistant ingress usage, but set a real public URL for direct access and webhook callbacks"
 fi
 
 rm -f /tmp/sfs-config-validate.log
 
-echo "[init] Using config: ${PERSIST_CONFIG_DIR}/config.yaml"
-echo "[init] Config source: ${CONFIG_SOURCE}"
-echo "[init] Persistent data root: /data"
+log "Using config: ${PERSIST_CONFIG_DIR}/config.yaml"
+log "Config source: ${CONFIG_SOURCE}"
+log "Persistent data root: /data"
 
-echo "[init] Done"
+log "Done"

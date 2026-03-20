@@ -1,5 +1,77 @@
 # Changelog
 
+## 0.4.61
+
+- fix: add heatmap fallback renderer in ingress shim that mounts Leaflet directly from `data-leaflet-routes` when upstream heatmap init leaves `#heatmap` empty (routes data + Leaflet available but no mount)
+
+## 0.4.60
+
+- fix: add guarded timeout-based one-time auto-reload on heatmap routes when Leaflet/data are present but `#heatmap` remains unmounted, matching the observed manual-reload recovery path in both direct and ingress mode
+
+## 0.4.59
+
+- fix: add guarded one-time ingress reload fallback for `/heatmap` when mount retries are exhausted and the map container is still not rendered, addressing intermittent `renderContent` network failures under ingress
+
+## 0.4.58
+
+- fix: broaden ingress heatmap click fallback detection to match non-anchor nav elements by text and common route/nav attributes containing `heatmap`
+
+## 0.4.57
+
+- fix: add ingress-only heatmap click fallback for non-anchor nav items (label `Heatmap`) to force `./heatmap` navigation when UI clicks do not trigger any route change
+
+## 0.4.56
+
+- fix: add minimal ingress-only History API remap for heatmap navigation (`/heatmap` -> `./heatmap`) so router-driven menu clicks without anchor links stay under ingress base path
+
+## 0.4.55
+
+- fix: remove invasive ingress heatmap history/click interception (which could cause flicker/overlay behavior) and replace with safe DOM anchor rewrite for heatmap links (`/heatmap` -> `./heatmap`)
+
+## 0.4.54
+
+- fix: change ingress heatmap navigation remap from `./dashboard#/heatmap` to `./heatmap` to avoid dashboard-overlay flicker/regression while keeping ingress-prefixed navigation
+- fix: clear direct heatmap reload guard when map mounts so one-time auto-reload recovery can trigger again on subsequent blank first-load cases
+
+## 0.4.53
+
+- fix: broaden ingress-context detection in runtime shim (HA `/app/...`, slug paths, and non-`:8080` contexts) so heatmap navigation rewriting is actually active under Home Assistant ingress
+- fix: run heatmap mount-heal retries even when `#heatmap` is not yet present on first navigation, improving first-load recovery without manual refresh
+
+## 0.4.52
+
+- fix: revert 0.4.51 heatmap server-side routing/link rewrites (`/heatmap` Caddy redirect and generated `href` remap) because they caused ingress regressions
+
+## 0.4.51
+
+- fix: add exact Caddy redirect for `/heatmap` -> `./dashboard#/heatmap` so first-load heatmap uses the SPA route initialization path (without broad deep-link redirects)
+- fix: rewrite generated `/heatmap` nav links during reconcile to `./dashboard#/heatmap` for ingress-safe and direct-safe heatmap navigation
+
+## 0.4.50
+
+- fix: add ingress-only heatmap navigation shim to map `/heatmap` links/history updates to `./dashboard#/heatmap`, preventing ingress fallback-to-landing on heatmap navigation
+- fix: add guarded direct-mode fallback reload for `/heatmap` when map container stays unmounted after bounded retries, matching observed manual-reload recovery
+
+## 0.4.49
+
+- fix: revert heatmap entry redirect (`/heatmap` -> `./dashboard#/heatmap`) due direct-mode regression/overlay; keep only non-navigational heatmap mount retries
+
+## 0.4.48
+
+- fix: normalize direct `/heatmap` entry to `./dashboard#/heatmap` in the ingress runtime shim so heatmap route initialization is consistent on first load (direct + ingress)
+
+## 0.4.47
+
+- fix: replace heatmap fallback navigation/reload with bounded in-place route lifecycle retries in ingress shim, preventing ingress resets while improving first-load heatmap mount reliability
+
+## 0.4.46
+
+- fix: replace heatmap one-time hard-reload workaround with a route-lifecycle mount heal (hashchange/popstate nudge + mutation observer) so first-load heatmap initialization is retried without full page reload
+
+## 0.4.45
+
+- fix: add guarded one-time heatmap self-heal reload in ingress shim when heatmap container remains empty after navigation, to recover from intermittent first-load mount race
+
 ## 0.4.44
 
 - fix: remove Caddy SPA deep-link redirect block to restore upstream path-based page mounting (notably `/heatmap`) and avoid forcing hash-route redirects that break heatmap initialization

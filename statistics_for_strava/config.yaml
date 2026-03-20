@@ -1,5 +1,5 @@
 name: "Statistics for Strava"
-version: "0.4.44"
+version: "0.4.61"
 slug: "statistics_for_strava"
 description: "Strava statistics dashboard"
 url: "https://github.com/robiningelbrecht/statistics-for-strava"

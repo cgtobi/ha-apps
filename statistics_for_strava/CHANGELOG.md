@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.63
+
+- feat: bump Statistics for Strava to v4.7.4 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+
 ## 0.4.62
 
 - fix: stop installing heatmap history/click navigation hooks; keep only render-heal/fallback logic so landing route behavior remains upstream-driven

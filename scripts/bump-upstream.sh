@@ -9,7 +9,8 @@ BUILD_YAML="${ADDON_DIR}/build.yaml"
 CONFIG_YAML="${ADDON_DIR}/config.yaml"
 CHANGELOG="${ADDON_DIR}/CHANGELOG.md"
 IMAGE_REPO="robiningelbrecht/strava-statistics"
-UPSTREAM_TAGS_URL="https://github.com/robiningelbrecht/statistics-for-strava/tags"
+UPSTREAM_GIT_URL="https://github.com/robiningelbrecht/statistics-for-strava.git"
+CHECK_SCRIPT="${ROOT_DIR}/scripts/check-release-consistency.sh"
 
 usage() {
   echo "Usage:"
@@ -134,6 +135,13 @@ check_sync() {
   check_arch aarch64
   check_arch armv7
 
+  if [ ! -x "$CHECK_SCRIPT" ]; then
+    echo "ERROR: missing executable ${CHECK_SCRIPT}" >&2
+    fail=1
+  elif ! "$CHECK_SCRIPT" --quiet; then
+    fail=1
+  fi
+
   latest_bump_line="$(awk '
     BEGIN { in_latest = 0 }
     /^## / {
@@ -164,7 +172,7 @@ check_sync() {
 
 print_commit_message() {
   version="$1"
-  echo "\nfeat: bump upstream to ${version}"
+  printf '\nfeat: bump upstream to %s\n' "$version"
 }
 
 append_changed_file() {
@@ -192,7 +200,11 @@ run_bump() {
 
   previous_upstream_version="$(tr -d ' \t\r\n' < "$VERSION_FILE" 2>/dev/null || true)"
 
-  cp "$VERSION_FILE" "$before_version_file"
+  if [ -f "$VERSION_FILE" ]; then
+    cp "$VERSION_FILE" "$before_version_file"
+  else
+    : > "$before_version_file"
+  fi
   cp "$DOCKERFILE" "$before_dockerfile"
   cp "$BUILD_YAML" "$before_build_yaml"
   cp "$CONFIG_YAML" "$before_config_yaml"
@@ -282,27 +294,29 @@ normalize_version() {
 }
 
 fetch_latest_upstream_version() {
-  html=""
-  if command -v curl >/dev/null 2>&1; then
-    html="$(curl -fsSL "$UPSTREAM_TAGS_URL")"
-  elif command -v wget >/dev/null 2>&1; then
-    html="$(wget -qO- "$UPSTREAM_TAGS_URL")"
-  else
-    echo "ERROR: neither curl nor wget is available to fetch ${UPSTREAM_TAGS_URL}" >&2
+  tags_output="$(git ls-remote --tags --refs "$UPSTREAM_GIT_URL" 2>/dev/null || true)"
+  if [ -z "$tags_output" ]; then
+    echo "ERROR: failed to fetch tags from ${UPSTREAM_GIT_URL}" >&2
     exit 1
   fi
 
   latest="$(
-    printf '%s\n' "$html" |
-      grep -Eo '/robiningelbrecht/statistics-for-strava/(releases/tag|tags)/v[0-9]+\.[0-9]+\.[0-9]+' |
-      sed -E 's|.*/(v[0-9]+\.[0-9]+\.[0-9]+)$|\1|' |
-      sed 's/^v//' |
+    printf '%s\n' "$tags_output" |
+      awk '
+        {
+          ref = $2
+          if (ref ~ /^refs\/tags\/v?[0-9]+\.[0-9]+\.[0-9]+$/) {
+            sub(/^refs\/tags\/v?/, "", ref)
+            print ref
+          }
+        }
+      ' |
       sort -u -t. -k1,1n -k2,2n -k3,3n |
       tail -n1
   )"
 
   if [ -z "$latest" ]; then
-    echo "ERROR: could not detect latest upstream tag from ${UPSTREAM_TAGS_URL}" >&2
+    echo "ERROR: could not parse release tags (vX.Y.Z or X.Y.Z) from ${UPSTREAM_GIT_URL}" >&2
     exit 1
   fi
 
@@ -311,7 +325,7 @@ fetch_latest_upstream_version() {
 
 if [ "${1:-}" = "" ]; then
   resolved_version="$(fetch_latest_upstream_version)"
-  echo "Resolved upstream version (GitHub tags): ${resolved_version}"
+  echo "Resolved upstream version (git tags): ${resolved_version}"
   run_bump "$resolved_version"
   check_sync
   if [ "${LAST_BUMP_CHANGED:-0}" = "1" ]; then
@@ -334,7 +348,7 @@ fi
 
 if [ "${2:-}" = "" ]; then
   VERSION="$(fetch_latest_upstream_version)"
-  echo "Resolved upstream version (GitHub tags): ${VERSION}"
+  echo "Resolved upstream version (git tags): ${VERSION}"
 else
   VERSION="$(normalize_version "$2")"
   echo "Resolved upstream version (explicit): ${VERSION}"

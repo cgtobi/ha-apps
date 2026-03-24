@@ -6,6 +6,7 @@ ADDON_DIR="${ROOT_DIR}/statistics_for_strava"
 VERSION_FILE="${ADDON_DIR}/.upstream-version"
 DOCKERFILE="${ADDON_DIR}/Dockerfile"
 BUILD_YAML="${ADDON_DIR}/build.yaml"
+CONFIG_YAML="${ADDON_DIR}/config.yaml"
 CHANGELOG="${ADDON_DIR}/CHANGELOG.md"
 IMAGE_REPO="robiningelbrecht/strava-statistics"
 UPSTREAM_TAGS_URL="https://github.com/robiningelbrecht/statistics-for-strava/tags"
@@ -20,6 +21,83 @@ usage() {
   echo "  $0 bump"
   echo "  $0 check"
   echo "  $0"
+}
+
+get_config_version() {
+  sed -n 's/^version:[[:space:]]*"\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' "$CONFIG_YAML" | head -n1
+}
+
+next_patch_version() {
+  current="$1"
+  IFS=. read -r major minor patch <<EOFV
+$current
+EOFV
+  if [ -z "${major:-}" ] || [ -z "${minor:-}" ] || [ -z "${patch:-}" ]; then
+    echo "ERROR: invalid semantic version '${current}'" >&2
+    exit 1
+  fi
+  patch=$((patch + 1))
+  echo "${major}.${minor}.${patch}"
+}
+
+set_config_version() {
+  new_version="$1"
+  tmp_config="$(mktemp)"
+  awk -v new_version="$new_version" '
+    BEGIN { updated = 0 }
+    /^version:[[:space:]]*"/ && updated == 0 {
+      print "version: \"" new_version "\""
+      updated = 1
+      next
+    }
+    { print }
+    END {
+      if (!updated) {
+        print "ERROR: version line not found in config.yaml" > "/dev/stderr"
+        exit 5
+      }
+    }
+  ' "$CONFIG_YAML" > "$tmp_config"
+  mv "$tmp_config" "$CONFIG_YAML"
+}
+
+prepend_changelog_release() {
+  addon_version="$1"
+  upstream_version="$2"
+  tmp_changelog="$(mktemp)"
+  awk -v addon_version="$addon_version" -v upstream_version="$upstream_version" '
+    BEGIN {
+      inserted = 0
+      skip_first_blank_after_header = 0
+      new_line = "- feat: bump Statistics for Strava to " upstream_version " [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)"
+    }
+    /^# Changelog[[:space:]]*$/ && !inserted {
+      print
+      print ""
+      print "## " addon_version
+      print ""
+      print new_line
+      print ""
+      inserted = 1
+      skip_first_blank_after_header = 1
+      next
+    }
+    {
+      if (skip_first_blank_after_header && $0 == "") {
+        skip_first_blank_after_header = 0
+        next
+      }
+      skip_first_blank_after_header = 0
+      print
+    }
+    END {
+      if (!inserted) {
+        print "ERROR: could not locate changelog header in CHANGELOG.md" > "/dev/stderr"
+        exit 6
+      }
+    }
+  ' "$CHANGELOG" > "$tmp_changelog"
+  mv "$tmp_changelog" "$CHANGELOG"
 }
 
 check_sync() {
@@ -86,11 +164,7 @@ check_sync() {
 
 print_commit_message() {
   version="$1"
-  echo "feat: bump upstream to ${version}"
-  echo
-  if [ -n "${CHANGED_FILES:-}" ]; then
-    printf '%s\n' "$CHANGED_FILES" | sed 's/^/- sync /'
-  fi
+  echo "\nfeat: bump upstream to ${version}"
 }
 
 append_changed_file() {
@@ -113,10 +187,15 @@ run_bump() {
   before_version_file="$(mktemp)"
   before_dockerfile="$(mktemp)"
   before_build_yaml="$(mktemp)"
+  before_config_yaml="$(mktemp)"
   before_changelog="$(mktemp)"
+
+  previous_upstream_version="$(tr -d ' \t\r\n' < "$VERSION_FILE" 2>/dev/null || true)"
+
   cp "$VERSION_FILE" "$before_version_file"
   cp "$DOCKERFILE" "$before_dockerfile"
   cp "$BUILD_YAML" "$before_build_yaml"
+  cp "$CONFIG_YAML" "$before_config_yaml"
   cp "$CHANGELOG" "$before_changelog"
 
   printf '%s\n' "$version" > "$VERSION_FILE"
@@ -155,51 +234,16 @@ run_bump() {
   ' "$BUILD_YAML" > "$tmp_build"
   mv "$tmp_build" "$BUILD_YAML"
 
-  tmp_changelog="$(mktemp)"
-  awk -v version="$version" '
-    BEGIN {
-      new_line = "- feat: bump Statistics for Strava to " version " [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)"
-      seen_heading = 0
-      in_latest = 0
-      replaced = 0
-    }
-    /^## / {
-      if (!seen_heading) {
-        seen_heading = 1
-        in_latest = 1
-        print
-        next
-      }
-      if (in_latest && !replaced) {
-        print ""
-        print new_line
-        replaced = 1
-      }
-      in_latest = 0
-      print
-      next
-    }
-    {
-      if (in_latest && $0 ~ /^- feat: bump Statistics for Strava to v[0-9]/) {
-        print new_line
-        replaced = 1
-        next
-      }
-      print
-    }
-    END {
-      if (seen_heading && in_latest && !replaced) {
-        print ""
-        print new_line
-        replaced = 1
-      }
-      if (!replaced) {
-        print "ERROR: could not update latest changelog upstream bump entry" > "/dev/stderr"
-        exit 4
-      }
-    }
-  ' "$CHANGELOG" > "$tmp_changelog"
-  mv "$tmp_changelog" "$CHANGELOG"
+  if [ "$previous_upstream_version" != "$version" ]; then
+    current_addon_version="$(get_config_version)"
+    if [ -z "$current_addon_version" ]; then
+      echo "ERROR: could not parse add-on version from ${CONFIG_YAML}" >&2
+      exit 7
+    fi
+    next_addon_version="$(next_patch_version "$current_addon_version")"
+    set_config_version "$next_addon_version"
+    prepend_changelog_release "$next_addon_version" "$version"
+  fi
 
   if ! cmp -s "$before_version_file" "$VERSION_FILE"; then
     append_changed_file "$VERSION_FILE"
@@ -210,11 +254,14 @@ run_bump() {
   if ! cmp -s "$before_build_yaml" "$BUILD_YAML"; then
     append_changed_file "$BUILD_YAML"
   fi
+  if ! cmp -s "$before_config_yaml" "$CONFIG_YAML"; then
+    append_changed_file "$CONFIG_YAML"
+  fi
   if ! cmp -s "$before_changelog" "$CHANGELOG"; then
     append_changed_file "$CHANGELOG"
   fi
 
-  rm -f "$before_version_file" "$before_dockerfile" "$before_build_yaml" "$before_changelog"
+  rm -f "$before_version_file" "$before_dockerfile" "$before_build_yaml" "$before_config_yaml" "$before_changelog"
 
   if [ -n "$CHANGED_FILES" ]; then
     LAST_BUMP_CHANGED="1"

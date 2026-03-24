@@ -2,65 +2,72 @@
 set -eu
 
 CONFIG_FILE="statistics_for_strava/config.yaml"
+CHANGELOG_FILE="statistics_for_strava/CHANGELOG.md"
+ADDON_DIR="statistics_for_strava"
 
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   exit 0
 fi
 
-if [ ! -f "$CONFIG_FILE" ]; then
+if [ ! -f "$CONFIG_FILE" ] || [ ! -f "$CHANGELOG_FILE" ]; then
   exit 0
 fi
 
-staged_in_addon="$(git diff --cached --name-only --diff-filter=ACMR -- 'statistics_for_strava/**' 'statistics_for_strava/*' ':!statistics_for_strava/config.yaml' || true)"
-if [ -z "$staged_in_addon" ]; then
+staged_any_in_addon="$(git diff --cached --name-only --diff-filter=ACMR -- "${ADDON_DIR}/**" "${ADDON_DIR}/*" || true)"
+if [ -z "$staged_any_in_addon" ]; then
   exit 0
 fi
 
-extract_version() {
+staged_config_changed="$(git diff --cached --name-only --diff-filter=ACMR -- "$CONFIG_FILE" || true)"
+staged_changelog_changed="$(git diff --cached --name-only --diff-filter=ACMR -- "$CHANGELOG_FILE" || true)"
+
+if [ -z "$staged_config_changed" ] || [ -z "$staged_changelog_changed" ]; then
+  echo "pre-commit: Version change and changelog update are required" >&2
+  exit 1
+fi
+
+extract_config_version() {
   sed -n 's/^version:[[:space:]]*"\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -n1
 }
 
-staged_version="$(git show ":${CONFIG_FILE}" 2>/dev/null | extract_version || true)"
-if [ -z "$staged_version" ]; then
-  echo "pre-commit: could not read staged version from ${CONFIG_FILE}" >&2
-  exit 1
-fi
-
-head_version="$(git show "HEAD:${CONFIG_FILE}" 2>/dev/null | extract_version || true)"
-if [ -n "$head_version" ] && [ "$staged_version" != "$head_version" ]; then
-  echo "pre-commit: ${CONFIG_FILE} version already changed (${staged_version}), skipping auto-bump"
-  exit 0
-fi
-
-IFS=. read -r major minor patch <<EOF
-$staged_version
-EOF
-
-if [ -z "${major:-}" ] || [ -z "${minor:-}" ] || [ -z "${patch:-}" ]; then
-  echo "pre-commit: invalid version '${staged_version}' in ${CONFIG_FILE}" >&2
-  exit 1
-fi
-
-next_patch=$((patch + 1))
-next_version="${major}.${minor}.${next_patch}"
-
-tmp_file="$(mktemp)"
-awk -v next_version="$next_version" '
-  BEGIN { updated = 0 }
-  /^version:[[:space:]]*"/ && updated == 0 {
-    print "version: \"" next_version "\""
-    updated = 1
-    next
-  }
-  { print }
-  END {
-    if (!updated) {
-      print "pre-commit: version line not found in config.yaml" > "/dev/stderr"
-      exit 1
+extract_top_changelog_version() {
+  awk '
+    /^##[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+([[:space:]].*)?$/ {
+      print $2
+      exit
     }
-  }
-' "$CONFIG_FILE" > "$tmp_file"
-mv "$tmp_file" "$CONFIG_FILE"
+  '
+}
 
-git add "$CONFIG_FILE"
-echo "pre-commit: bumped ${CONFIG_FILE} version ${staged_version} -> ${next_version}"
+staged_config_version="$(git show ":${CONFIG_FILE}" 2>/dev/null | extract_config_version || true)"
+if [ -z "$staged_config_version" ]; then
+  echo "pre-commit: could not read staged add-on version from ${CONFIG_FILE}" >&2
+  exit 1
+fi
+
+head_config_version="$(git show "HEAD:${CONFIG_FILE}" 2>/dev/null | extract_config_version || true)"
+if [ -n "$head_config_version" ] && [ "$staged_config_version" = "$head_config_version" ]; then
+  staged_non_version_changes="$(git diff --cached --name-only --diff-filter=ACMR -- "${ADDON_DIR}/**" "${ADDON_DIR}/*" ":!${CONFIG_FILE}" ":!${CHANGELOG_FILE}" || true)"
+  if [ -n "$staged_non_version_changes" ]; then
+    echo "pre-commit: add-on files changed, but ${CONFIG_FILE} version was not incremented" >&2
+    echo "  current staged version: ${staged_config_version}" >&2
+    echo "  head version:           ${head_config_version}" >&2
+    exit 1
+  fi
+fi
+
+staged_changelog_version="$(git show ":${CHANGELOG_FILE}" 2>/dev/null | extract_top_changelog_version || true)"
+if [ -z "$staged_changelog_version" ]; then
+  echo "pre-commit: could not read top release version from ${CHANGELOG_FILE}" >&2
+  exit 1
+fi
+
+if [ "$staged_config_version" != "$staged_changelog_version" ]; then
+  echo "pre-commit: version mismatch detected" >&2
+  echo "  config.yaml:   ${staged_config_version}" >&2
+  echo "  CHANGELOG.md:  ${staged_changelog_version}" >&2
+  echo "  expected top changelog section to match config.yaml version" >&2
+  exit 1
+fi
+
+echo "pre-commit: version check OK (${staged_config_version})"

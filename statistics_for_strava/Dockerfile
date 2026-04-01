@@ -1,4 +1,4 @@
-ARG BUILD_FROM=robiningelbrecht/strava-statistics:v4.7.4
+ARG BUILD_FROM=robiningelbrecht/strava-statistics:v4.7.5
 FROM ${BUILD_FROM}
 
 RUN apk add --no-cache jq

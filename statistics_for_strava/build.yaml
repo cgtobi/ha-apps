@@ -1,4 +1,4 @@
 build_from:
-  amd64: robiningelbrecht/strava-statistics:v4.7.5
-  aarch64: robiningelbrecht/strava-statistics:v4.7.5
-  armv7: robiningelbrecht/strava-statistics:v4.7.5
+  amd64: robiningelbrecht/strava-statistics:v4.7.6
+  aarch64: robiningelbrecht/strava-statistics:v4.7.6
+  armv7: robiningelbrecht/strava-statistics:v4.7.6

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.68
+
+- fix: test fix for issue 1993 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+
 ## 0.4.67
 
 - feat: bump Statistics for Strava to v4.7.7 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)

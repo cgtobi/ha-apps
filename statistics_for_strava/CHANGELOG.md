@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.67
+
+- feat: bump Statistics for Strava to v4.7.7 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+
 ## 0.4.66
 
 - feat: bump Statistics for Strava to v4.7.6 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)

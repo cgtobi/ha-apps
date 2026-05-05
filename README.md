@@ -17,7 +17,14 @@ This repository contains the following add-on.
 _Statistics for Strava dashboard with built-in daemon scheduling._
 
 Note: This repository does not publish pre-built multi-arch images.  
-The architecture badges reflect the add-on `arch` targets declared in the manifest and build support via Home Assistant's add-on build pipeline.
+The architecture badges reflect the add-on `arch` targets declared in the manifest and Dockerfile-based local builds using Docker BuildKit.
+
+The Statistics for Strava add-on uses the official upstream GHCR image as its base image. To test the local build directly:
+
+```sh
+docker build -t statistics-for-strava-local ./statistics_for_strava
+docker build --build-arg BUILD_FROM=ghcr.io/robiningelbrecht/statistics-for-strava:vX.Y.Z -t statistics-for-strava-local ./statistics_for_strava
+```
 
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg

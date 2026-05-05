@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.71
+
+- feat: migrate to Home Assistant BuildKit model
+
 ## 0.4.70
 
 - feat: bump Statistics for Strava to v4.7.9 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)

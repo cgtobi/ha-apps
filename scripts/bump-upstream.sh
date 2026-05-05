@@ -5,10 +5,9 @@ ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 ADDON_DIR="${ROOT_DIR}/statistics_for_strava"
 VERSION_FILE="${ADDON_DIR}/.upstream-version"
 DOCKERFILE="${ADDON_DIR}/Dockerfile"
-BUILD_YAML="${ADDON_DIR}/build.yaml"
 CONFIG_YAML="${ADDON_DIR}/config.yaml"
 CHANGELOG="${ADDON_DIR}/CHANGELOG.md"
-IMAGE_REPO="robiningelbrecht/strava-statistics"
+IMAGE_REPO="ghcr.io/robiningelbrecht/statistics-for-strava"
 UPSTREAM_GIT_URL="https://github.com/robiningelbrecht/statistics-for-strava.git"
 CHECK_SCRIPT="${ROOT_DIR}/scripts/check-release-consistency.sh"
 
@@ -122,19 +121,6 @@ check_sync() {
     fail=1
   fi
 
-  check_arch() {
-    arch="$1"
-    value="$(sed -n "s/^  ${arch}: //p" "$BUILD_YAML")"
-    if [ "$value" != "$expected" ]; then
-      echo "Mismatch: build.yaml ${arch} has '${value}', expected '${expected}'" >&2
-      fail=1
-    fi
-  }
-
-  check_arch amd64
-  check_arch aarch64
-  check_arch armv7
-
   if [ ! -x "$CHECK_SCRIPT" ]; then
     echo "ERROR: missing executable ${CHECK_SCRIPT}" >&2
     fail=1
@@ -194,7 +180,6 @@ run_bump() {
 
   before_version_file="$(mktemp)"
   before_dockerfile="$(mktemp)"
-  before_build_yaml="$(mktemp)"
   before_config_yaml="$(mktemp)"
   before_changelog="$(mktemp)"
 
@@ -206,7 +191,6 @@ run_bump() {
     : > "$before_version_file"
   fi
   cp "$DOCKERFILE" "$before_dockerfile"
-  cp "$BUILD_YAML" "$before_build_yaml"
   cp "$CONFIG_YAML" "$before_config_yaml"
   cp "$CHANGELOG" "$before_changelog"
 
@@ -230,22 +214,6 @@ run_bump() {
   ' "$DOCKERFILE" > "$tmp_docker"
   mv "$tmp_docker" "$DOCKERFILE"
 
-  tmp_build="$(mktemp)"
-  awk -v image_ref="$IMAGE_REF" '
-    BEGIN { a = 0; b = 0; c = 0 }
-    /^  amd64:/   { print "  amd64: " image_ref; a = 1; next }
-    /^  aarch64:/ { print "  aarch64: " image_ref; b = 1; next }
-    /^  armv7:/   { print "  armv7: " image_ref; c = 1; next }
-    { print }
-    END {
-      if (!(a && b && c)) {
-        print "ERROR: expected amd64/aarch64/armv7 build_from entries in build.yaml" > "/dev/stderr"
-        exit 3
-      }
-    }
-  ' "$BUILD_YAML" > "$tmp_build"
-  mv "$tmp_build" "$BUILD_YAML"
-
   if [ "$previous_upstream_version" != "$version" ]; then
     current_addon_version="$(get_config_version)"
     if [ -z "$current_addon_version" ]; then
@@ -263,9 +231,6 @@ run_bump() {
   if ! cmp -s "$before_dockerfile" "$DOCKERFILE"; then
     append_changed_file "$DOCKERFILE"
   fi
-  if ! cmp -s "$before_build_yaml" "$BUILD_YAML"; then
-    append_changed_file "$BUILD_YAML"
-  fi
   if ! cmp -s "$before_config_yaml" "$CONFIG_YAML"; then
     append_changed_file "$CONFIG_YAML"
   fi
@@ -273,7 +238,7 @@ run_bump() {
     append_changed_file "$CHANGELOG"
   fi
 
-  rm -f "$before_version_file" "$before_dockerfile" "$before_build_yaml" "$before_config_yaml" "$before_changelog"
+  rm -f "$before_version_file" "$before_dockerfile" "$before_config_yaml" "$before_changelog"
 
   if [ -n "$CHANGED_FILES" ]; then
     LAST_BUMP_CHANGED="1"

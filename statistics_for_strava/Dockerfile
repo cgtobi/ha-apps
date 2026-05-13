@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/robiningelbrecht/statistics-for-strava:v4.7.10
+ARG BUILD_FROM=ghcr.io/robiningelbrecht/statistics-for-strava:v4.7.11
 FROM ${BUILD_FROM}
 
 LABEL \

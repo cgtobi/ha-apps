@@ -80,6 +80,131 @@
     return url;
   }
 
+  function getIngressBasePath() {
+    if (!isIngressContext()) {
+      return "";
+    }
+    var path = (window.location && window.location.pathname) || "";
+    var match = path.match(/^\/api\/hassio_ingress\/[^/]+/);
+    return match ? match[0] : "";
+  }
+
+  function shouldRewriteIngressAssetPath(pathname) {
+    if (typeof pathname !== "string" || pathname.indexOf("/") !== 0) {
+      return false;
+    }
+    if (pathname.indexOf("/api/hassio_ingress/") === 0) {
+      return false;
+    }
+    if (pathname.indexOf("/js/") === 0) {
+      return true;
+    }
+    if (pathname.indexOf("/css/") === 0) {
+      return true;
+    }
+    if (pathname.indexOf("/libraries/") === 0) {
+      return true;
+    }
+    if (pathname.indexOf("/assets/") === 0) {
+      return true;
+    }
+    return false;
+  }
+
+  function normalizeAssetUrlForIngress(url) {
+    if (typeof url !== "string" || !url) {
+      return url;
+    }
+    if (!isIngressContext()) {
+      return url;
+    }
+    var ingressBase = getIngressBasePath();
+    if (!ingressBase) {
+      return url;
+    }
+    if (url.indexOf("//") === 0 || url.indexOf("data:") === 0 || url.indexOf("blob:") === 0) {
+      return url;
+    }
+    try {
+      var parsed = new URL(url, window.location.href);
+      if (parsed.origin !== window.location.origin) {
+        return url;
+      }
+      if (!shouldRewriteIngressAssetPath(parsed.pathname)) {
+        return url;
+      }
+      return ingressBase + parsed.pathname + parsed.search + parsed.hash;
+    } catch (_e) {
+      if (url.indexOf("/") === 0 && shouldRewriteIngressAssetPath(url)) {
+        return ingressBase + url;
+      }
+    }
+    return url;
+  }
+
+  function patchElementAttributeSetter(tagName, attrName) {
+    var ctor =
+      tagName === "script"
+        ? window.HTMLScriptElement
+        : tagName === "link"
+          ? window.HTMLLinkElement
+          : null;
+    if (!ctor || !ctor.prototype) {
+      return;
+    }
+    var descriptor = Object.getOwnPropertyDescriptor(ctor.prototype, attrName);
+    if (!descriptor || typeof descriptor.set !== "function" || typeof descriptor.get !== "function") {
+      return;
+    }
+    Object.defineProperty(ctor.prototype, attrName, {
+      configurable: true,
+      enumerable: descriptor.enumerable,
+      get: descriptor.get,
+      set: function (value) {
+        return descriptor.set.call(this, normalizeAssetUrlForIngress(value));
+      },
+    });
+  }
+
+  function patchSetAttribute() {
+    var nativeSetAttribute = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function (name, value) {
+      var attr = typeof name === "string" ? name.toLowerCase() : "";
+      if (
+        (this.tagName === "SCRIPT" && attr === "src") ||
+        (this.tagName === "LINK" && attr === "href")
+      ) {
+        value = normalizeAssetUrlForIngress(value);
+      }
+      return nativeSetAttribute.call(this, name, value);
+    };
+  }
+
+  function patchNodeInsertion(methodName) {
+    var nativeMethod = Node.prototype[methodName];
+    if (typeof nativeMethod !== "function") {
+      return;
+    }
+    Node.prototype[methodName] = function (node) {
+      if (node && node.tagName === "SCRIPT" && node.src) {
+        node.src = normalizeAssetUrlForIngress(node.src);
+      } else if (node && node.tagName === "LINK" && node.href) {
+        node.href = normalizeAssetUrlForIngress(node.href);
+      }
+      return nativeMethod.apply(this, arguments);
+    };
+  }
+
+  function installIngressAssetDomPatches() {
+    patchElementAttributeSetter("script", "src");
+    patchElementAttributeSetter("link", "href");
+    patchSetAttribute();
+    patchNodeInsertion("appendChild");
+    patchNodeInsertion("insertBefore");
+  }
+
+  installIngressAssetDomPatches();
+
   var originalFetch = window.fetch;
   if (typeof originalFetch === "function") {
     window.fetch = function (input, init) {

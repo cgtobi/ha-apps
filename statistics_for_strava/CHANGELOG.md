@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.76
+
+- fix: update ingress asset patches
+
 ## 0.4.75
 
 - feat: bump Statistics for Strava to v4.8.1 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)

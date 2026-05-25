@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.77
+
+- chore: add logging
+
 ## 0.4.76
 
 - fix: update ingress asset patches

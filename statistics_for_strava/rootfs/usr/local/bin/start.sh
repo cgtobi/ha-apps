@@ -23,9 +23,15 @@ run_daemon_forever() {
 
 run_ingress_rewrite_forever() {
   while true; do
+    started_at="$(date +%s)"
+    log "ingress rewrite loop started"
     if ! SFS_RECONCILE_REWRITE_ONLY=1 sh /usr/local/bin/sfs-reconcile-config.sh >/tmp/sfs-rewrite-loop.log 2>&1; then
       log "ingress rewrite loop failed; showing recent output"
       tail -n 20 /tmp/sfs-rewrite-loop.log || true
+    else
+      finished_at="$(date +%s)"
+      duration_seconds=$((finished_at - started_at))
+      log "ingress rewrite loop finished in ${duration_seconds}s"
     fi
     sleep 30
   done

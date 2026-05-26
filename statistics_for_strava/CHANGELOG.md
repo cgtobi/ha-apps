@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.78
+
+- fix: prevent unnecessary rewrites
+
 ## 0.4.77
 
 - chore: add logging

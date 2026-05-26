@@ -10,6 +10,7 @@ RUNTIME_DIR="/data/runtime"
 STATUS_FILE="${RUNTIME_DIR}/reconcile.status"
 STARTUP_MARKER_FILE="${RUNTIME_DIR}/health.startup"
 IMPORT_STARTUP_STAMP_FILE="${RUNTIME_DIR}/reconcile.import.startup"
+INGRESS_REWRITE_MARKER_FILE="${RUNTIME_DIR}/ingress-rewrite.last"
 
 timestamp_utc() {
   date -u +%Y-%m-%dT%H:%M:%SZ
@@ -152,10 +153,39 @@ rewrite_public_js_for_ingress() {
   fi
 }
 
+ingress_rewrite_needed() {
+  BUILD_DIR="/data/build/html"
+  APP_JS_FILE="/var/www/public/js/dist/app.min.js"
+
+  if [ ! -f "$INGRESS_REWRITE_MARKER_FILE" ]; then
+    return 0
+  fi
+
+  if [ -f "$APP_JS_FILE" ] && [ "$APP_JS_FILE" -nt "$INGRESS_REWRITE_MARKER_FILE" ]; then
+    return 0
+  fi
+
+  if [ -d "$BUILD_DIR" ] && find "$BUILD_DIR" -type f \( -name '*.html' -o -name '*.js' \) -newer "$INGRESS_REWRITE_MARKER_FILE" -print 2>/dev/null | grep -q .; then
+    return 0
+  fi
+
+  return 1
+}
+
+mark_ingress_rewrite_complete() {
+  touch "$INGRESS_REWRITE_MARKER_FILE"
+}
+
 if [ "${SFS_RECONCILE_REWRITE_ONLY:-0}" = "1" ]; then
+  if ! ingress_rewrite_needed; then
+    log_msg "[reconcile] Rewrite-only mode: skipping ingress rewrites (no changed files)"
+    exit 0
+  fi
+
   log_msg "[reconcile] Rewrite-only mode: applying ingress rewrites"
   rewrite_build_files_for_ingress
   rewrite_public_js_for_ingress
+  mark_ingress_rewrite_complete
   exit 0
 fi
 
@@ -248,6 +278,7 @@ if [ -f /var/www/bin/console ]; then
       log_msg "[reconcile] app:strava:build-files finished"
       rewrite_build_files_for_ingress
       rewrite_public_js_for_ingress
+      mark_ingress_rewrite_complete
     else
       BUILD_RC=$?
       if [ "$BUILD_RC" -eq 10 ]; then
@@ -266,6 +297,7 @@ if [ -f /var/www/bin/console ]; then
       log_msg "[reconcile] Running ingress rewrites on existing files despite build-files failure"
       rewrite_build_files_for_ingress
       rewrite_public_js_for_ingress
+      mark_ingress_rewrite_complete
     fi
   fi
 fi

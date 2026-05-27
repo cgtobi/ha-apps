@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.79
+
+- feat: bump Statistics for Strava to v4.8.2 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+
 ## 0.4.78
 
 - fix: prevent unnecessary rewrites

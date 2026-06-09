@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.85
+
+- fix: seed the ingress base path into upstream's runtime config (`statisticsForStrava.appUrl.basePath`) before `app.min.js` boots, so SPA router page-name dispatch (`page === 'heatmap'`) matches on direct load/reload under ingress and the heatmap mounts without a manual reload
+
 ## 0.4.84
 
 - fix: drop deprecated `armv7` arch (no upstream armv7 image is built)

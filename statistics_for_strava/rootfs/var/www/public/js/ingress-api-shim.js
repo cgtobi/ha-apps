@@ -205,6 +205,52 @@
 
   installIngressAssetDomPatches();
 
+  // Seed the ingress base path into upstream's runtime config before app.min.js
+  // reads it. Upstream derives basePath at build time from appUrl, which is
+  // unknown for the dynamic HA ingress prefix (/api/hassio_ingress/<token>/),
+  // so it ships basePath="". That breaks router page-name dispatch
+  // (page === 'heatmap' never matches on direct load/reload) and the webpack
+  // public path for dynamic chunks. The inline assignment
+  // `window.statisticsForStrava = {...}` runs after this shim, so intercept it
+  // via a defineProperty setter and patch appUrl.basePath on assignment.
+  (function seedIngressBasePath() {
+    if (!isIngressContext()) {
+      return;
+    }
+    var ingressBase = getIngressBasePath();
+    if (!ingressBase) {
+      return;
+    }
+    var basePathValue = ingressBase.replace(/^\/+/, "");
+    var pending;
+    try {
+      Object.defineProperty(window, "statisticsForStrava", {
+        configurable: true,
+        enumerable: true,
+        get: function () {
+          return pending;
+        },
+        set: function (value) {
+          if (value && value.appUrl && typeof value.appUrl === "object") {
+            value.appUrl.basePath = basePathValue;
+          }
+          pending = value;
+        },
+      });
+    } catch (_e) {
+      // If the property is already defined/non-configurable, patch in place.
+      try {
+        if (
+          window.statisticsForStrava &&
+          window.statisticsForStrava.appUrl &&
+          typeof window.statisticsForStrava.appUrl === "object"
+        ) {
+          window.statisticsForStrava.appUrl.basePath = basePathValue;
+        }
+      } catch (_e2) {}
+    }
+  })();
+
   var originalFetch = window.fetch;
   if (typeof originalFetch === "function") {
     window.fetch = function (input, init) {

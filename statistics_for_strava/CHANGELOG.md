@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.84
+
+- fix: drop deprecated `armv7` arch (no upstream armv7 image is built)
+
 ## 0.4.83
 
 - feat: bump Statistics for Strava to v4.8.7 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)

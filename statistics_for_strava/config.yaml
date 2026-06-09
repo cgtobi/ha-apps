@@ -1,12 +1,11 @@
 name: "Statistics for Strava"
-version: "0.4.83"
+version: "0.4.84"
 slug: "statistics_for_strava"
 description: "Strava statistics dashboard"
 url: "https://github.com/robiningelbrecht/statistics-for-strava"
 arch:
   - amd64
   - aarch64
-  - armv7
 startup: services
 boot: auto
 init: false

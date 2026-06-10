@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.87
+
+- chore: reduce log spam
+
 ## 0.4.86
 
 - refactor: drop dead heatmap self-heal/fallback-mount/auto-reload and nav-interception code from the ingress shim (the Leaflet fallback relied on a global `window.L` that upstream never sets); base-path seeding makes routing correct at the source

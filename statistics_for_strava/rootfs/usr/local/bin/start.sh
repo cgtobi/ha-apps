@@ -9,6 +9,14 @@ log() {
   echo "$(timestamp) [start] $*"
 }
 
+# Only emitted when CADDY_LOG_LEVEL=DEBUG; keeps the 30s ingress
+# rewrite loop from spamming the log on every iteration.
+debug_log() {
+  case "$(printf '%s' "${CADDY_LOG_LEVEL:-}" | tr '[:upper:]' '[:lower:]')" in
+    debug) echo "$(timestamp) [start] $*" ;;
+  esac
+}
+
 run_daemon_forever() {
   while true; do
     if sh /etc/services.d/daemon/run; then
@@ -24,14 +32,14 @@ run_daemon_forever() {
 run_ingress_rewrite_forever() {
   while true; do
     started_at="$(date +%s)"
-    log "ingress rewrite loop started"
+    debug_log "ingress rewrite loop started"
     if ! SFS_RECONCILE_REWRITE_ONLY=1 sh /usr/local/bin/sfs-reconcile-config.sh >/tmp/sfs-rewrite-loop.log 2>&1; then
       log "ingress rewrite loop failed; showing recent output"
       tail -n 20 /tmp/sfs-rewrite-loop.log || true
     else
       finished_at="$(date +%s)"
       duration_seconds=$((finished_at - started_at))
-      log "ingress rewrite loop finished in ${duration_seconds}s"
+      debug_log "ingress rewrite loop finished in ${duration_seconds}s"
     fi
     sleep 30
   done

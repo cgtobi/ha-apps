@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.88
+
+- fix: align flysystem storage keys with upstream
+
 ## 0.4.87
 
 - chore: reduce log spam

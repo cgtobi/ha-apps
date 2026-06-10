@@ -1,15 +1,22 @@
 # Read the documentation at https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md
+#
+# Storage KEYS must match upstream so flysystem-bundle's autowiring aliases line
+# up with the constructor params the app injects: build-html.storage ->
+# $buildHtmlStorage, build_api.storage -> $buildApiStorage, build.storage ->
+# $buildStorage, etc. Only the directories are overridden here to persist data
+# and build output under /data (where Caddy serves the static site from).
+#
+# Do NOT rename the keys (e.g. build.storage/api.storage): an unmatched
+# FilesystemOperator param silently falls back to default.storage
+# (%kernel.project_dir%) and writes land in /var/www instead of /data, so newly
+# built pages never reach the served build dir. Upstream split build output into
+# build-html/build_api in v4.8.x; keep these keys in sync on version bumps.
 flysystem:
     storages:
         default.storage:
             adapter: 'local'
             options:
                 directory: '%kernel.project_dir%'
-                lock: 0
-        public.storage:
-            adapter: 'local'
-            options:
-                directory: '%kernel.project_dir%/public'
                 lock: 0
         file.storage:
             adapter: 'local'
@@ -29,9 +36,14 @@ flysystem:
         build.storage:
             adapter: 'local'
             options:
+                directory: '/data/build'
+                lock: 0
+        build-html.storage:
+            adapter: 'local'
+            options:
                 directory: '/data/build/html'
                 lock: 0
-        api.storage:
+        build_api.storage:
             adapter: 'local'
             options:
                 directory: '/data/build/api'

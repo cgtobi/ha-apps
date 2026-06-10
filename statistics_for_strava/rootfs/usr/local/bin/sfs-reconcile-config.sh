@@ -138,9 +138,17 @@ rewrite_public_js_for_ingress() {
   fi
 
   tmp_file="${APP_JS_FILE}.sfs.tmp"
+  # The SPA derives the page name from the route via
+  # route.replace(basePath,'').replace(/^\/+/,'').replaceAll('/','-'). Under
+  # ingress, appUrl is './' so routes are emitted as './heatmap', and the
+  # leading './' survives the slash strip then becomes '.-heatmap' — so
+  # `page === 'heatmap'` never matches and the dynamically-imported leaflet
+  # chunk (heatmap map, photos, milestones) never loads. Strip an optional
+  # leading './' too by widening /^\/+/ to /^\.?\/+/.
   if sed \
     -e 's#\\/api\\.\\/#\\/api\\/#g' \
     -e 's|/api\\./|/api/|g' \
+    -e 's#replace(/^\\/+/,"")#replace(/^\\.?\\/+/,"")#g' \
     "$APP_JS_FILE" > "$tmp_file"; then
     if ! cmp -s "$APP_JS_FILE" "$tmp_file"; then
       mv "$tmp_file" "$APP_JS_FILE"

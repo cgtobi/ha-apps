@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.89
+
+- fix: render heatmap map under ingress
+
 ## 0.4.88
 
 - fix: align flysystem storage keys with upstream

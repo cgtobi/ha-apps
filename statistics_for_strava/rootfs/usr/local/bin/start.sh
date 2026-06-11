@@ -1,8 +1,17 @@
 #!/bin/sh
 set -eu
 
+# Export TZ before anything logs so wrapper timestamps, child scripts and the
+# FrankenPHP/Caddy process all emit local time instead of UTC.
+if [ -f /data/options.json ]; then
+  _tz="$(jq -r '.tz // ""' /data/options.json)"
+  if [ -n "$_tz" ]; then
+    export TZ="$_tz"
+  fi
+fi
+
 timestamp() {
-  date -u +"%Y-%m-%dT%H:%M:%SZ"
+  date +"%Y-%m-%dT%H:%M:%S%z"
 }
 
 log() {

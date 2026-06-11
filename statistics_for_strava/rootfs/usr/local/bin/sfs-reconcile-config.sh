@@ -29,7 +29,7 @@ if [ "${SFS_RECONCILE_REWRITE_ONLY:-0}" = "1" ]; then
 fi
 
 timestamp_utc() {
-  date -u +%Y-%m-%dT%H:%M:%SZ
+  date +%Y-%m-%dT%H:%M:%S%z
 }
 
 log_msg() {
@@ -318,7 +318,7 @@ if [ "$PHASE" = "config" ] || [ "$PHASE" = "full" ]; then
   fi
 
   {
-    printf 'updated_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'updated_at=%s\n' "$(date +%Y-%m-%dT%H:%M:%S%z)"
     printf 'changed=%s\n' "$CHANGED"
     printf 'config_sha256=%s\n' "$CANDIDATE_SHA"
   } > "$STATUS_FILE"
@@ -424,7 +424,7 @@ if [ "$PHASE" = "data" ] || [ "$PHASE" = "full" ]; then
         warn_msg "Failed to run app:strava:build-files during config reconcile (exit_code=${BUILD_RC})"
       fi
       cp /tmp/sfs-build-files.log /data/runtime/sfs-build-files.last.log 2>/dev/null || true
-      printf 'failed_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
+      printf 'failed_at=%s\n' "$(date +%Y-%m-%dT%H:%M:%S%z)" > /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
       printf 'exit_code=%s\n' "$BUILD_RC" >> /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
       log_msg "[reconcile] build-files log (first 40 lines)"
       sed -n '1,40p' /tmp/sfs-build-files.log || true

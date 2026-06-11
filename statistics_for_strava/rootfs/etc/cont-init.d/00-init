@@ -2,7 +2,7 @@
 set -eu
 
 timestamp() {
-  date -u +"%Y-%m-%dT%H:%M:%SZ"
+  date +"%Y-%m-%dT%H:%M:%S%z"
 }
 
 log() {

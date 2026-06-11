@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.92
+
+- fix: log in local time instead of UTC
+
 ## 0.4.91
 
 - fix: start web before background import so watchdog stays green

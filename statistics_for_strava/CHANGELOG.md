@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.93
+
+- fix: stop web/daemon racing on the config symlink
+
 ## 0.4.92
 
 - fix: log in local time instead of UTC

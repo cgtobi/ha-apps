@@ -17,8 +17,9 @@ TARGET_CONFIG_DIR="/var/www/config/app"
 mkdir -p /var/www/config
 mkdir -p "$SOURCE_CONFIG_DIR"
 
-# Reconcile persisted config from add-on options on each service start.
-sh /usr/local/bin/sfs-reconcile-config.sh
+# Config is reconciled by init (fast config phase) before this service starts,
+# so do NOT reconcile here: blocking on the reconcile lock would hold the web
+# server (and /healthz) behind the backgrounded data reconcile's long import.
 
 # Ensure app config path is stable even if the base image recreates /var/www/config.
 if [ -L "$TARGET_CONFIG_DIR" ]; then

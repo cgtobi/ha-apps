@@ -109,8 +109,11 @@ require_non_empty "tz" "$TZ_VALUE"
 
 CONFIG_SOURCE="existing"
 if [ -n "$APP_CONFIG_YAML" ]; then
-  # Keep one authoritative reconciliation path used by init + services.
-  if ! sh /usr/local/bin/sfs-reconcile-config.sh; then
+  # Keep one authoritative reconciliation path used by init + services. Run only
+  # the fast config phase here (render/validate/migrate); the slow data phase
+  # (import + build-files) is launched in the background by start.sh after the
+  # web server is up, so boot does not block the HA watchdog.
+  if ! SFS_RECONCILE_PHASE=config sh /usr/local/bin/sfs-reconcile-config.sh; then
     fatal "Could not reconcile /data/config/app/config.yaml from /data/options.json"
     exit 1
   fi

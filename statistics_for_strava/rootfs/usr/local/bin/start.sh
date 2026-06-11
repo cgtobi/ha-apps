@@ -65,5 +65,14 @@ run_ingress_rewrite_forever &
 log "Launching daemon"
 run_daemon_forever &
 
+# Run the slow data reconcile (import + build-files) in the background so the
+# web server (and /healthz) can come up immediately. init already ran the fast
+# config phase (render/validate/migrate), so config and the DB schema are ready;
+# pages 404 with a "building" state only until the first build lands, instead of
+# the watchdog seeing a closed port for the whole import and restarting the addon.
+log "Launching background data reconcile (import + build)"
+( SFS_RECONCILE_PHASE=data sh /usr/local/bin/sfs-reconcile-config.sh \
+    >/tmp/sfs-data-reconcile.log 2>&1 ) &
+
 log "Launching web"
 exec sh /etc/services.d/web/run

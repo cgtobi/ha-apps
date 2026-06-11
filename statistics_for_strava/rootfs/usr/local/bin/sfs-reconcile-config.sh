@@ -14,6 +14,19 @@ BUILD_STARTUP_STAMP_FILE="${RUNTIME_DIR}/reconcile.build.startup"
 BUILD_START_MARKER_FILE="${RUNTIME_DIR}/reconcile.build.start"
 BUILD_INDEX_FILE="/data/build/html/index.html"
 INGRESS_REWRITE_MARKER_FILE="${RUNTIME_DIR}/ingress-rewrite.last"
+MIGRATE_OK_FILE="${RUNTIME_DIR}/reconcile.migrate.ok"
+
+# Reconcile runs in phases so the slow data work (import + build-files) can run
+# in the background after the web server is already listening, instead of
+# blocking boot and starving the HA watchdog:
+#   config  - render/validate config, migrate DB, write status (fast; pre-serve)
+#   data    - import + build-files + prune + ingress rewrites (slow; backgrounded)
+#   rewrite - ingress path rewrites only (the 30s loop)
+#   full    - config then data (default; back-compat for direct callers)
+PHASE="${SFS_RECONCILE_PHASE:-full}"
+if [ "${SFS_RECONCILE_REWRITE_ONLY:-0}" = "1" ]; then
+  PHASE="rewrite"
+fi
 
 timestamp_utc() {
   date -u +%Y-%m-%dT%H:%M:%SZ
@@ -83,12 +96,38 @@ mkdir -p "$CONFIG_DIR"
 mkdir -p /data/storage/files
 mkdir -p "$RUNTIME_DIR"
 
-# Simple lock to avoid concurrent writes from web/daemon start scripts.
-while ! mkdir "$LOCK_DIR" 2>/dev/null; do
-  sleep 0.1
-done
+# Lock to serialize writes from the init / background data reconcile / 30s
+# rewrite loop. mkdir is the atomic primitive. A live holder (e.g. a slow
+# background import) is waited for. A holder that died without running its trap
+# (SIGKILL / OOM / power-cut) would otherwise orphan the lock dir forever, so
+# steal it once the recorded PID is gone AND the dir is older than any real
+# reconcile could plausibly take.
+LOCK_PID_FILE="${LOCK_DIR}/owner.pid"
+LOCK_STALE_MIN=20
+
+acquire_lock() {
+  while true; do
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+      printf '%s\n' "$$" > "$LOCK_PID_FILE" 2>/dev/null || true
+      return 0
+    fi
+    holder="$(cat "$LOCK_PID_FILE" 2>/dev/null || true)"
+    if [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null; then
+      :  # holder alive — wait for it
+    elif [ -n "$(find "$LOCK_DIR" -maxdepth 0 -mmin "+${LOCK_STALE_MIN}" 2>/dev/null)" ]; then
+      warn_msg "Stealing stale reconcile lock (holder=${holder:-unknown})"
+      rm -rf "$LOCK_DIR" 2>/dev/null || true
+      continue
+    fi
+    # Holder dead but lock still fresh (tiny mkdir->pid write window), or holder
+    # alive: back off and retry.
+    sleep 0.2
+  done
+}
+
+acquire_lock
 cleanup() {
-  rmdir "$LOCK_DIR" 2>/dev/null || true
+  rm -rf "$LOCK_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
@@ -214,7 +253,7 @@ mark_ingress_rewrite_complete() {
   touch "$INGRESS_REWRITE_MARKER_FILE"
 }
 
-if [ "${SFS_RECONCILE_REWRITE_ONLY:-0}" = "1" ]; then
+if [ "$PHASE" = "rewrite" ]; then
   if ! ingress_rewrite_needed; then
     log_msg "[reconcile] Rewrite-only mode: skipping ingress rewrites (no changed files)"
     exit 0
@@ -227,48 +266,75 @@ if [ "${SFS_RECONCILE_REWRITE_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-CANDIDATE_CONFIG="${CONFIG_FILE}.candidate"
-if ! php /usr/local/share/sfs/render-app-config.php "$OPTIONS_FILE" "$CANDIDATE_CONFIG" >/tmp/sfs-config-render.log 2>&1; then
-  fatal_msg "Could not render app config from add-on options"
-  sed -n '1,5p' /tmp/sfs-config-render.log || true
-  rm -f "$CANDIDATE_CONFIG"
-  exit 1
-fi
+if [ "$PHASE" = "config" ] || [ "$PHASE" = "full" ]; then
+  CANDIDATE_CONFIG="${CONFIG_FILE}.candidate"
+  if ! php /usr/local/share/sfs/render-app-config.php "$OPTIONS_FILE" "$CANDIDATE_CONFIG" >/tmp/sfs-config-render.log 2>&1; then
+    fatal_msg "Could not render app config from add-on options"
+    sed -n '1,5p' /tmp/sfs-config-render.log || true
+    rm -f "$CANDIDATE_CONFIG"
+    exit 1
+  fi
 
-if ! php /usr/local/share/sfs/validate-app-config.php "$CANDIDATE_CONFIG" >/tmp/sfs-config-validate.log 2>&1; then
-  fatal_msg "Invalid app_config_yaml in add-on options"
-  sed -n '1,5p' /tmp/sfs-config-validate.log || true
-  rm -f "$CANDIDATE_CONFIG"
-  exit 1
-fi
+  if ! php /usr/local/share/sfs/validate-app-config.php "$CANDIDATE_CONFIG" >/tmp/sfs-config-validate.log 2>&1; then
+    fatal_msg "Invalid app_config_yaml in add-on options"
+    sed -n '1,5p' /tmp/sfs-config-validate.log || true
+    rm -f "$CANDIDATE_CONFIG"
+    exit 1
+  fi
 
-CURRENT_SHA=""
-if [ -f "$CONFIG_FILE" ]; then
-  CURRENT_SHA="$(sha256sum "$CONFIG_FILE" | awk '{print $1}')"
-fi
-CANDIDATE_SHA="$(sha256sum "$CANDIDATE_CONFIG" | awk '{print $1}')"
+  CURRENT_SHA=""
+  if [ -f "$CONFIG_FILE" ]; then
+    CURRENT_SHA="$(sha256sum "$CONFIG_FILE" | awk '{print $1}')"
+  fi
+  CANDIDATE_SHA="$(sha256sum "$CANDIDATE_CONFIG" | awk '{print $1}')"
 
-if [ "$CURRENT_SHA" != "$CANDIDATE_SHA" ]; then
-  mv "$CANDIDATE_CONFIG" "$CONFIG_FILE"
-  CHANGED="true"
-else
-  rm -f "$CANDIDATE_CONFIG"
-  CHANGED="false"
-fi
-
-CHALLENGE_HISTORY_HTML="$(jq -r '.strava_challenge_history_html // ""' "$OPTIONS_FILE")"
-if [ -n "$CHALLENGE_HISTORY_HTML" ]; then
-  printf '%s\n' "$CHALLENGE_HISTORY_HTML" > "$CHALLENGE_HISTORY_FILE"
-  log_msg "[reconcile] Updated ${CHALLENGE_HISTORY_FILE} from add-on options"
-fi
-
-if [ -f /var/www/bin/console ]; then
-  log_msg "[reconcile] Running doctrine migrations"
-  if ! (cd /var/www && php bin/console doctrine:migrations:migrate --no-interaction >/tmp/sfs-migrate.log 2>&1); then
-    warn_msg "Failed to run doctrine migrations during config reconcile"
-    sed -n '1,10p' /tmp/sfs-migrate.log || true
+  if [ "$CURRENT_SHA" != "$CANDIDATE_SHA" ]; then
+    mv "$CANDIDATE_CONFIG" "$CONFIG_FILE"
+    CHANGED="true"
   else
-    log_msg "[reconcile] Doctrine migrations finished"
+    rm -f "$CANDIDATE_CONFIG"
+    CHANGED="false"
+  fi
+
+  CHALLENGE_HISTORY_HTML="$(jq -r '.strava_challenge_history_html // ""' "$OPTIONS_FILE")"
+  if [ -n "$CHALLENGE_HISTORY_HTML" ]; then
+    printf '%s\n' "$CHALLENGE_HISTORY_HTML" > "$CHALLENGE_HISTORY_FILE"
+    log_msg "[reconcile] Updated ${CHALLENGE_HISTORY_FILE} from add-on options"
+  fi
+
+  # Record migration outcome so the (possibly separate, backgrounded) data phase
+  # only imports/builds against a schema that migrated cleanly. Cleared first so
+  # a stale marker from a prior boot can never green-light the data phase.
+  rm -f "$MIGRATE_OK_FILE"
+  if [ -f /var/www/bin/console ]; then
+    log_msg "[reconcile] Running doctrine migrations"
+    if ! (cd /var/www && php bin/console doctrine:migrations:migrate --no-interaction >/tmp/sfs-migrate.log 2>&1); then
+      warn_msg "Failed to run doctrine migrations during config reconcile"
+      sed -n '1,10p' /tmp/sfs-migrate.log || true
+    else
+      log_msg "[reconcile] Doctrine migrations finished"
+      : > "$MIGRATE_OK_FILE"
+    fi
+  fi
+
+  {
+    printf 'updated_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'changed=%s\n' "$CHANGED"
+    printf 'config_sha256=%s\n' "$CANDIDATE_SHA"
+  } > "$STATUS_FILE"
+fi
+
+if [ "$PHASE" = "data" ] || [ "$PHASE" = "full" ]; then
+  # CHANGED is set by the config phase in the same process (full mode). In a
+  # standalone data phase it is unset; default false — a fresh boot already
+  # forces import/build via the per-startup markers below.
+  CHANGED="${CHANGED:-false}"
+
+  if [ ! -f /var/www/bin/console ]; then
+    log_msg "[reconcile] Skipping data phase (Symfony console not found)"
+  elif [ ! -f "$MIGRATE_OK_FILE" ]; then
+    warn_msg "Skipping import/build-files (doctrine migrations did not complete cleanly)"
+  else
     IMPORT_COMMAND="app:strava:import-data"
 
     RUN_IMPORT_NOW="true"
@@ -311,12 +377,11 @@ if [ -f /var/www/bin/console ]; then
       :
     fi
 
-    # Build at most once per startup unless the config changed. init, web and
-    # daemon each call reconcile on boot, and the daemon restarts on crash;
-    # without this gate every one triggers a full rebuild of all activity HTML.
-    # A real config change (CHANGED=true) or a missing build index always
-    # rebuilds. Steady-state data rebuilds run via the daemon's own
-    # importDataAndBuildApp cron, not this script.
+    # Build at most once per startup unless the config changed. init runs the
+    # config phase on boot; the backgrounded data phase runs build once. A real
+    # config change (CHANGED=true) or a missing build index always rebuilds.
+    # Steady-state data rebuilds run via the daemon's own importDataAndBuildApp
+    # cron, not this script.
     SHOULD_BUILD="true"
     if [ "$CHANGED" != "true" ] && [ -f "$BUILD_INDEX_FILE" ]; then
       if [ -r "$STARTUP_MARKER_FILE" ]; then
@@ -374,9 +439,3 @@ if [ -f /var/www/bin/console ]; then
     fi
   fi
 fi
-
-{
-  printf 'updated_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  printf 'changed=%s\n' "$CHANGED"
-  printf 'config_sha256=%s\n' "$CANDIDATE_SHA"
-} > "$STATUS_FILE"

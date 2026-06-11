@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.91
+
+- fix: start web before background import so watchdog stays green
+
 ## 0.4.90
 
 - fix: prune orphan build files and gate rebuild per boot

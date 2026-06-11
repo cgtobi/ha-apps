@@ -20,8 +20,10 @@ mkdir -p "$RUNTIME_DIR"
 mkdir -p /var/www/config
 mkdir -p "$SOURCE_CONFIG_DIR"
 
-# Reconcile persisted config from add-on options on each service start.
-sh /usr/local/bin/sfs-reconcile-config.sh
+# Config is reconciled by init (fast config phase) before this service starts.
+# Do NOT reconcile here: it would block daemon startup (and the daemon PID that
+# /healthz checks) behind the reconcile lock, and on a crash-restart loop it
+# would re-run doctrine migrations every few seconds.
 
 # Ensure app config path is stable even if the base image recreates /var/www/config.
 if [ -L "$TARGET_CONFIG_DIR" ]; then

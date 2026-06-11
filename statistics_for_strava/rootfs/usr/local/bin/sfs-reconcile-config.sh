@@ -10,6 +10,9 @@ RUNTIME_DIR="/data/runtime"
 STATUS_FILE="${RUNTIME_DIR}/reconcile.status"
 STARTUP_MARKER_FILE="${RUNTIME_DIR}/health.startup"
 IMPORT_STARTUP_STAMP_FILE="${RUNTIME_DIR}/reconcile.import.startup"
+BUILD_STARTUP_STAMP_FILE="${RUNTIME_DIR}/reconcile.build.startup"
+BUILD_START_MARKER_FILE="${RUNTIME_DIR}/reconcile.build.start"
+BUILD_INDEX_FILE="/data/build/html/index.html"
 INGRESS_REWRITE_MARKER_FILE="${RUNTIME_DIR}/ingress-rewrite.last"
 
 timestamp_utc() {
@@ -161,6 +164,33 @@ rewrite_public_js_for_ingress() {
   fi
 }
 
+prune_orphan_build_files() {
+  # Remove stale files left in the served build dir. A successful build rewrites
+  # every legitimate page (RunBuild dispatches all builders unconditionally and
+  # each does buildHtmlStorage->write), so any file NOT touched by this build is
+  # an orphan: a page for a deleted activity, a toggled-off section, or a file
+  # placed manually. Upstream only ->write()s build-html and never prunes, so
+  # orphans accumulate and Caddy keeps serving them (root /data/build/html).
+  #
+  # Prune by mtime against a marker stamped just before build start. MUST run
+  # BEFORE the ingress rewrite: the rewrite sed-touches every *.html/*.js
+  # (orphans included), which would bump their mtime and shield them from prune.
+  marker="$1"
+  BUILD_DIR="/data/build/html"
+  if [ ! -d "$BUILD_DIR" ] || [ ! -f "$marker" ]; then
+    return 0
+  fi
+
+  orphan_count="$(find "$BUILD_DIR" -type f ! -newer "$marker" 2>/dev/null | wc -l | tr -d ' ')"
+  if [ "$orphan_count" -gt 0 ] 2>/dev/null; then
+    find "$BUILD_DIR" -type f ! -newer "$marker" -delete 2>/dev/null || true
+    find "$BUILD_DIR" -type d -empty -delete 2>/dev/null || true
+    log_msg "[reconcile] Pruned ${orphan_count} orphan build file(s) from ${BUILD_DIR}"
+  else
+    log_msg "[reconcile] No orphan build files to prune"
+  fi
+}
+
 ingress_rewrite_needed() {
   BUILD_DIR="/data/build/html"
   APP_JS_FILE="/var/www/public/js/dist/app.min.js"
@@ -281,9 +311,43 @@ if [ -f /var/www/bin/console ]; then
       :
     fi
 
+    # Build at most once per startup unless the config changed. init, web and
+    # daemon each call reconcile on boot, and the daemon restarts on crash;
+    # without this gate every one triggers a full rebuild of all activity HTML.
+    # A real config change (CHANGED=true) or a missing build index always
+    # rebuilds. Steady-state data rebuilds run via the daemon's own
+    # importDataAndBuildApp cron, not this script.
+    SHOULD_BUILD="true"
+    if [ "$CHANGED" != "true" ] && [ -f "$BUILD_INDEX_FILE" ]; then
+      if [ -r "$STARTUP_MARKER_FILE" ]; then
+        CURRENT_STARTUP_MARKER="$(tr -d '\n' < "$STARTUP_MARKER_FILE" || true)"
+        LAST_BUILD_MARKER=""
+        if [ -r "$BUILD_STARTUP_STAMP_FILE" ]; then
+          LAST_BUILD_MARKER="$(tr -d '\n' < "$BUILD_STARTUP_STAMP_FILE" || true)"
+        fi
+        if [ -n "$CURRENT_STARTUP_MARKER" ] && [ "$CURRENT_STARTUP_MARKER" = "$LAST_BUILD_MARKER" ]; then
+          SHOULD_BUILD="false"
+        fi
+      fi
+    fi
+
+    if [ "$SHOULD_BUILD" != "true" ]; then
+      log_msg "[reconcile] Skipping app:strava:build-files (already built this startup, config unchanged)"
+    else
+    # Stamp the marker just before build start, then wait 1s so every file the
+    # build writes has a strictly newer mtime than the marker (find compares at
+    # 1s granularity). prune_orphan_build_files keys off this boundary.
+    touch "$BUILD_START_MARKER_FILE"
+    sleep 1
     log_msg "[reconcile] Running app:strava:build-files"
     if run_console_command /tmp/sfs-build-files.log app:strava:build-files; then
       log_msg "[reconcile] app:strava:build-files finished"
+      # Record the startup this build covers so later reconciles this boot skip.
+      # Only on success, so a failed build is retried by the next reconcile.
+      if [ -r "$STARTUP_MARKER_FILE" ]; then
+        tr -d '\n' < "$STARTUP_MARKER_FILE" > "$BUILD_STARTUP_STAMP_FILE" || true
+      fi
+      prune_orphan_build_files "$BUILD_START_MARKER_FILE"
       rewrite_build_files_for_ingress
       rewrite_public_js_for_ingress
       mark_ingress_rewrite_complete
@@ -306,6 +370,7 @@ if [ -f /var/www/bin/console ]; then
       rewrite_build_files_for_ingress
       rewrite_public_js_for_ingress
       mark_ingress_rewrite_complete
+    fi
     fi
   fi
 fi

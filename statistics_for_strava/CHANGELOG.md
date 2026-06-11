@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.90
+
+- fix: prune orphan build files and gate rebuild per boot
+
 ## 0.4.89
 
 - fix: render heatmap map under ingress

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.98
+
+- chore: groundwork for v4.8.8 file import (watch dir + `addon_config:rw` mount). Config options (`import_mode`, `expose_share`) are not exposed in the UI yet — feature not ready for use
+
 ## 0.4.97
 
 - feat: support v4.8.8 file import mode (`import_mode: files`) for `.fit`/`.tcx`/`.gpx` activity files

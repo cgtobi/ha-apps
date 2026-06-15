@@ -1,5 +1,5 @@
 name: "Statistics for Strava"
-version: "0.4.97"
+version: "0.4.98"
 slug: "statistics_for_strava"
 description: "Strava statistics dashboard"
 url: "https://github.com/robiningelbrecht/statistics-for-strava"
@@ -25,15 +25,17 @@ webui: "http://[HOST]:[PORT:8080]"
 watchdog: "http://[HOST]:[PORT:8080]/healthz"
 
 # Map the add-on's own config dir (mounted at /config inside the container, and
-# exposed on the host as /addon_configs/local_statistics_for_strava). Used as the
-# file-import watch directory when expose_share=true, so activity files can be
-# dropped in over SMB/CIFS. Scoped to this add-on's dir only (not all of /share).
+# exposed on the host as /addon_configs/local_statistics_for_strava). Groundwork
+# for the file-import watch directory (expose_share). Scoped to this add-on's dir
+# only (not all of /share).
 map:
   - addon_config:rw
 
+# File-import options (import_mode, expose_share) are intentionally NOT exposed in
+# the UI yet — the feature is not ready for use. The rootfs scripts default to
+# import_mode=stravaApi and expose_share off when these keys are absent, so the
+# watch dir stays dormant. Re-add them here (and to schema) to surface the feature.
 options:
-  import_mode: "stravaApi"
-  expose_share: false
   strava_client_id: ""
   strava_client_secret: ""
   strava_refresh_token: ""
@@ -103,11 +105,9 @@ options:
   cron_import_expression: ""
 
 schema:
-  import_mode: "list(stravaApi|files)"
-  expose_share: bool
-  strava_client_id: str?
-  strava_client_secret: password?
-  strava_refresh_token: password?
+  strava_client_id: str
+  strava_client_secret: password
+  strava_refresh_token: password
   tz: str
   strava_challenge_history_html: str
   general_app_url: str

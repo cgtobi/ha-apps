@@ -2,6 +2,11 @@
 
 ## Import modes
 
+> **Not yet available.** File import is groundwork only — the `import_mode` and
+> `expose_share` options are intentionally hidden from the add-on UI and the
+> feature is not ready for use. The section below documents the planned behavior
+> for when it is enabled.
+
 The add-on supports two import modes, selected via `import_mode`:
 
 - `stravaApi` (default): imports activities from the Strava API. Requires `strava_client_id`, `strava_client_secret`, `strava_refresh_token`.

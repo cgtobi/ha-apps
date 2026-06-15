@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.96
+
+- fix: resync overridden AppConfig.php with v4.8.8 (new $importMode init param) to stop the daemon crash loop
+
 ## 0.4.95
 
 - fix: clear upstream entrypoint so boot no longer crashes on the v4.8.8 migrate.lock flock

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Config;
 
+use App\Domain\Import\ImportMode;
 use App\Infrastructure\ValueObject\String\KernelProjectDir;
 use Symfony\Component\Finder\Exception\DirectoryNotFoundException;
 use Symfony\Component\Finder\Finder;
@@ -14,6 +15,7 @@ final class AppConfig
 {
     private static ?KernelProjectDir $kernelProjectDir = null;
     private static ?PlatformEnvironment $platformEnvironment = null;
+    private static ?ImportMode $importMode = null;
     /** @var non-empty-array<string> */
     private static array $ymlConfigFiles;
 
@@ -23,19 +25,21 @@ final class AppConfig
     public static function init(
         KernelProjectDir $kernelProjectDir,
         PlatformEnvironment $platformEnvironment,
+        ImportMode $importMode,
     ): void {
         self::$kernelProjectDir = $kernelProjectDir;
         self::$platformEnvironment = $platformEnvironment;
+        self::$importMode = $importMode;
         self::buildConfig();
     }
 
     private static function buildConfig(): void
     {
         if (!self::$kernelProjectDir instanceof KernelProjectDir) {
-            throw new \RuntimeException('$kernelProjectDir not set. Please call AppConfig::setServices() before using this method.'); // @codeCoverageIgnore
+            throw new \RuntimeException('$kernelProjectDir not set. Please call AppConfig::init() before using this method.'); // @codeCoverageIgnore
         }
         if (!self::$platformEnvironment instanceof PlatformEnvironment) {
-            throw new \RuntimeException('$platformEnvironment not set. Please call AppConfig::setServices() before using this method.'); // @codeCoverageIgnore
+            throw new \RuntimeException('$platformEnvironment not set. Please call AppConfig::init() before using this method.'); // @codeCoverageIgnore
         }
         self::$config = [];
         $isTest = self::$platformEnvironment->isTest();
@@ -136,6 +140,15 @@ final class AppConfig
         }
 
         return self::$config[$key];
+    }
+
+    public static function getImportMode(): ImportMode
+    {
+        if (!self::$importMode instanceof ImportMode) {
+            throw new \RuntimeException('$importMode not set. Please call AppConfig::init() before using this method.'); // @codeCoverageIgnore
+        }
+
+        return self::$importMode;
     }
 
     public static function isAIIntegrationEnabled(): bool

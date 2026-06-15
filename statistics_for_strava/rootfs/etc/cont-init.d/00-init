@@ -24,6 +24,11 @@ HA_ADDON_CONFIG_DIR="/addon_configs/local_statistics_for_strava"
 PERSIST_CONFIG_DIR="/data/config/app"
 TARGET_CONFIG_DIR="/var/www/config/app"
 TARGET_STORAGE_DIR="/var/www/storage"
+# File-import watch dir. addon_config:rw mounts the add-on's config dir at /config
+# inside the container (host: /addon_configs/local_statistics_for_strava), so files
+# dropped here over SMB/CIFS are picked up by the upstream file-import pipeline.
+WATCH_SOURCE_DIR="/config/watch"
+TARGET_WATCH_DIR="/var/www/watch"
 STARTUP_MARKER_FILE="/data/runtime/health.startup"
 S6_ENV_DIR_1="/var/run/s6/container_environment"
 S6_ENV_DIR_2="/run/s6/container_environment"
@@ -101,11 +106,37 @@ STRAVA_CLIENT_SECRET="$(read_opt strava_client_secret)"
 STRAVA_REFRESH_TOKEN="$(read_opt strava_refresh_token)"
 TZ_VALUE="$(read_opt tz)"
 APP_CONFIG_YAML="$(read_opt app_config_yaml)"
+IMPORT_MODE="$(read_opt import_mode)"
+EXPOSE_SHARE="$(read_opt expose_share)"
+: "${IMPORT_MODE:=stravaApi}"
 
-require_non_empty "strava_client_id" "$STRAVA_CLIENT_ID"
-require_non_empty "strava_client_secret" "$STRAVA_CLIENT_SECRET"
-require_non_empty "strava_refresh_token" "$STRAVA_REFRESH_TOKEN"
+# Strava credentials are only required in Strava-API import mode. In "files" mode
+# the app imports activity files from the watch dir and needs no Strava tokens.
+if [ "$IMPORT_MODE" = "stravaApi" ]; then
+  require_non_empty "strava_client_id" "$STRAVA_CLIENT_ID"
+  require_non_empty "strava_client_secret" "$STRAVA_CLIENT_SECRET"
+  require_non_empty "strava_refresh_token" "$STRAVA_REFRESH_TOKEN"
+fi
 require_non_empty "tz" "$TZ_VALUE"
+
+# Expose the file-import watch dir via the mapped add-on config dir so activity
+# files can be provided over SMB/CIFS. Gated by expose_share: when off, the watch
+# dir stays internal/unused. Same link idiom as the storage symlink above.
+if [ "$EXPOSE_SHARE" = "true" ]; then
+  if [ -L "$TARGET_WATCH_DIR" ]; then
+    rm -f "$TARGET_WATCH_DIR"
+  elif [ -d "$TARGET_WATCH_DIR" ]; then
+    rm -rf "$TARGET_WATCH_DIR"
+  elif [ -f "$TARGET_WATCH_DIR" ]; then
+    rm -f "$TARGET_WATCH_DIR"
+  fi
+  if mkdir -p "$WATCH_SOURCE_DIR" 2>/dev/null; then
+    ln -s "$WATCH_SOURCE_DIR" "$TARGET_WATCH_DIR"
+    log "File-import watch dir exposed at ${WATCH_SOURCE_DIR} (host: /addon_configs/local_statistics_for_strava/watch)"
+  else
+    warn "expose_share=true but ${WATCH_SOURCE_DIR} is not writable; is 'addon_config:rw' mapped?"
+  fi
+fi
 
 CONFIG_SOURCE="existing"
 if [ -n "$APP_CONFIG_YAML" ]; then
@@ -132,6 +163,7 @@ for env_dir in "$S6_ENV_DIR_1" "$S6_ENV_DIR_2"; do
     printf '%s' "$STRAVA_CLIENT_SECRET" > "${env_dir}/STRAVA_CLIENT_SECRET"
     printf '%s' "$STRAVA_REFRESH_TOKEN" > "${env_dir}/STRAVA_REFRESH_TOKEN"
     printf '%s' "$TZ_VALUE" > "${env_dir}/TZ"
+    printf '%s' "$IMPORT_MODE" > "${env_dir}/IMPORT_MODE"
     printf '%s' "$(read_opt caddy_log_level)" > "${env_dir}/CADDY_LOG_LEVEL"
   fi
 done

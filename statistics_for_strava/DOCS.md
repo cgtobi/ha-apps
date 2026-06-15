@@ -1,10 +1,32 @@
 # Statistics for Strava
 
+## Import modes
+
+The add-on supports two import modes, selected via `import_mode`:
+
+- `stravaApi` (default): imports activities from the Strava API. Requires `strava_client_id`, `strava_client_secret`, `strava_refresh_token`.
+- `files`: imports activities from local `.fit` / `.tcx` / `.gpx` files. Requires no Strava credentials. The athlete is built from config, so `general.athlete.firstName`, `general.athlete.lastName` and `general.athlete.gender` must be set.
+
+### Providing files over SMB/CIFS (`files` mode)
+
+1. Set `import_mode: files` and `expose_share: true`.
+2. The add-on symlinks its file-import watch dir to its mapped config dir, exposed on the host as `/addon_configs/local_statistics_for_strava/watch`.
+3. Make that path reachable over SMB/CIFS: in the official Samba add-on, enable the `addon_configs` share. The watch dir then appears under `\\HOST\addon_configs\statistics_for_strava\watch`.
+4. Drop `.fit` / `.tcx` / `.gpx` files into that folder.
+
+Notes:
+
+- The daemon scans the watch dir and imports every ~5 minutes; a startup import also runs once per container start.
+- Imported files are **deleted** from the watch dir by upstream after a successful import — this is expected behavior.
+- `expose_share` only controls whether the watch dir is created and symlinked; the underlying mount (`addon_config:rw`) is always granted but scoped to this add-on's own config dir, not all of `/share`.
+
 ## Required add-on options
 
-- `strava_client_id`
-- `strava_client_secret`
-- `strava_refresh_token`
+- `import_mode` (`stravaApi` or `files`; default `stravaApi`)
+- `expose_share` (`true`/`false`, default `false`; exposes the file-import watch dir over the mapped config dir)
+- `strava_client_id` (required in `stravaApi` mode)
+- `strava_client_secret` (required in `stravaApi` mode)
+- `strava_refresh_token` (required in `stravaApi` mode)
 - `tz`
 - `strava_challenge_history_html` (optional): paste HTML source from your Strava trophy-case page to import historical challenges/trophies
 - `app_config_yaml.general.appUrl` must be a non-empty string
@@ -22,7 +44,7 @@
   - `cron_import_enabled` (`true`/`false`, used when `cron_import_expression` is set)
 - Optional startup import behavior:
   - `reconcile_run_import` (`true`/`false`, default `true`; runs one import command during reconcile before build-files)
-- Startup fails fast if any required Strava option is empty.
+- In `stravaApi` mode, startup fails fast if any required Strava option is empty. In `files` mode, Strava options are not required.
 - Startup validates `config.yaml` structure and required keys before services start (legacy optional sections are tolerated).
 
 > Privacy note: add-on options are persisted by Home Assistant on disk in `/data/options.json`.
@@ -61,7 +83,7 @@ This add-on runs both required processes inside one container:
 - During config render, placeholder `general.appUrl` is normalized to `./` (unless `general_app_url` is set) so ingress-prefixed asset/API paths stay under the ingress base path.
 - `app_config_yaml` is authoritative: when non-empty, `/data/config/app/config.yaml` is reconciled from add-on options on startup and service restarts.
 - On each config reconcile invocation, the add-on runs Doctrine migrations and then `app:strava:build-files` so extracted UI overrides are applied.
-- When `reconcile_run_import=true`, reconcile runs `app:strava:import-data` once per container startup before build-files.
+- When `reconcile_run_import=true`, reconcile runs one import once per container startup before build-files: `app:strava:import-data` in `stravaApi` mode, `app:cron:run-file-import` in `files` mode.
 - When `strava_challenge_history_html` is non-empty, reconcile writes it to `/data/storage/files/strava-challenge-history.html`.
 - The add-on creates `/var/www/storage -> /data/storage` so upstream challenge import code can read `storage/files/strava-challenge-history.html`.
 - Strava trophy-case HTML import currently requires Strava UI language to be English.
@@ -80,6 +102,9 @@ general:
   appSubTitle: null
   profilePictureUrl: null
   athlete:
+    firstName: null  # required in files import mode
+    lastName: null   # required in files import mode
+    gender: null     # required in files import mode
     birthday: "YYYY-MM-DD"
     maxHeartRateFormula: "fox"
     restingHeartRateFormula: "heuristicAgeBased"

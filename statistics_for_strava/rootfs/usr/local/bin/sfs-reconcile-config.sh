@@ -69,6 +69,8 @@ fi
 
 APP_CONFIG_YAML="$(jq -r '.app_config_yaml // ""' "$OPTIONS_FILE")"
 RECONCILE_RUN_IMPORT="$(jq -r '.reconcile_run_import // true' "$OPTIONS_FILE")"
+IMPORT_MODE="$(jq -r '.import_mode // "stravaApi"' "$OPTIONS_FILE")"
+export IMPORT_MODE
 STRAVA_CLIENT_ID="$(jq -r '.strava_client_id // ""' "$OPTIONS_FILE")"
 STRAVA_CLIENT_SECRET="$(jq -r '.strava_client_secret // ""' "$OPTIONS_FILE")"
 STRAVA_REFRESH_TOKEN="$(jq -r '.strava_refresh_token // ""' "$OPTIONS_FILE")"
@@ -342,7 +344,14 @@ if [ "$PHASE" = "data" ] || [ "$PHASE" = "full" ]; then
   elif [ ! -f "$MIGRATE_OK_FILE" ]; then
     warn_msg "Skipping import/build-files (doctrine migrations did not complete cleanly)"
   else
-    IMPORT_COMMAND="app:strava:import-data"
+    # Pick the import command for the configured mode. In "files" mode the daemon
+    # also runs app:cron:run-file-import every 5 min; this startup run gives an
+    # immediate first import. app:strava:import-data is a no-op in files mode.
+    if [ "$IMPORT_MODE" = "files" ]; then
+      IMPORT_COMMAND="app:cron:run-file-import"
+    else
+      IMPORT_COMMAND="app:strava:import-data"
+    fi
 
     RUN_IMPORT_NOW="true"
     if [ "$RECONCILE_RUN_IMPORT" != "true" ]; then

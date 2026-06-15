@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.97
+
+- feat: support v4.8.8 file import mode (`import_mode: files`) for `.fit`/`.tcx`/`.gpx` activity files
+- feat: add `expose_share` option to expose the file-import watch dir over SMB/CIFS via the mapped add-on config dir (`addon_config:rw`, scoped to this add-on only)
+- feat: make Strava credentials optional; required only in `stravaApi` import mode
+
 ## 0.4.96
 
 - fix: resync overridden AppConfig.php with v4.8.8 (new $importMode init param) to stop the daemon crash loop

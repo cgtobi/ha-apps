@@ -307,12 +307,19 @@ if [ "$PHASE" = "config" ] || [ "$PHASE" = "full" ]; then
   # a stale marker from a prior boot can never green-light the data phase.
   rm -f "$MIGRATE_OK_FILE"
   if [ -f /var/www/bin/console ]; then
-    log_msg "[reconcile] Running doctrine migrations"
-    if ! (cd /var/www && php bin/console doctrine:migrations:migrate --no-interaction >/tmp/sfs-migrate.log 2>&1); then
-      warn_msg "Failed to run doctrine migrations during config reconcile"
+    # Use app:db:migrate (not doctrine:migrations:migrate) so the migration
+    # squash handler runs first. v4.8.8 squashed the migration history; on an
+    # existing database the handler marks the squashed migration executed,
+    # whereas a raw doctrine migrate would try to re-run the squashed
+    # schema-create migration on a populated DB and fail. It also leaves the
+    # schema reporting "at latest version", which the daemon's
+    # #[RequiresUpToDateDatabaseSchema] commands require to not be blocked.
+    log_msg "[reconcile] Running database migrations"
+    if ! (cd /var/www && php bin/console app:db:migrate --no-interaction >/tmp/sfs-migrate.log 2>&1); then
+      warn_msg "Failed to run database migrations during config reconcile"
       sed -n '1,10p' /tmp/sfs-migrate.log || true
     else
-      log_msg "[reconcile] Doctrine migrations finished"
+      log_msg "[reconcile] Database migrations finished"
       : > "$MIGRATE_OK_FILE"
     fi
   fi

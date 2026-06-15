@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.95
+
+- fix: clear upstream entrypoint so boot no longer crashes on the v4.8.8 migrate.lock flock
+- fix: run migrations via app:db:migrate so the v4.8.8 migration squash upgrades existing databases cleanly
+
 ## 0.4.94
 
 - feat: bump Statistics for Strava to v4.8.8 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)

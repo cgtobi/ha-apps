@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.94
+
+- feat: bump Statistics for Strava to v4.8.8 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+
 ## 0.4.93
 
 - fix: stop web/daemon racing on the config symlink

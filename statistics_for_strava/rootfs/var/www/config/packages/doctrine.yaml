@@ -1,6 +1,6 @@
 doctrine:
   dbal:
-    url: 'sqlite:////data/storage/database/strava.db?charset=utf8mb4'
+    url: 'sqlite:////data/storage/database/dreeve.db?charset=utf8mb4'
     profiling_collect_backtrace: false
   orm:
     enable_native_lazy_objects: true
@@ -16,6 +16,11 @@ doctrine:
         dir: '%kernel.project_dir%/src'
         prefix: 'App'
         alias: App
+      Money\Money:
+        type: xml
+        dir: "%kernel.project_dir%/config/packages/doctrine"
+        prefix: Money
+        is_bundle: false
     controller_resolver:
       auto_mapping: false
 
@@ -23,4 +28,4 @@ when@test:
   doctrine:
     dbal:
       # "TEST_TOKEN" is typically set by ParaTest for parallel test isolation
-      url: 'sqlite:///%kernel.project_dir%/tests/strava%env(default::TEST_TOKEN)%.db'
+      url: 'sqlite:///%kernel.project_dir%/tests/dreeve%env(default::TEST_TOKEN)%.db'

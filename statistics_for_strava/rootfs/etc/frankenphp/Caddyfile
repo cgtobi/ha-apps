@@ -21,6 +21,25 @@
 	root /var/www/public
 	encode zstd br gzip
 
+	# HA ingress support: the supervisor proxy strips the
+	# /api/hassio_ingress/<token> prefix and forwards it as X-Ingress-Path.
+	# Map it to X-Forwarded-Prefix so Symfony (which trusts the private-range
+	# proxy, see config/packages/framework.yaml) generates redirects and
+	# router/asset URLs under the ingress base path. Guarded so direct :8080
+	# access (no ingress header) never receives a prefix.
+	#
+	# The app only ever sees an X-Forwarded-Prefix we set ourselves. When there is
+	# no ingress request, strip any client-supplied value (prevents spoofing on an
+	# exposed :8080); when HA's X-Ingress-Path is present, set the prefix from it
+	# (this replaces any client-supplied value). The two are mutually exclusive by
+	# matcher so their order never conflicts — a single unconditional strip plus a
+	# conditional set would not work, because Caddy's headers handler applies
+	# deletions after sets and would clobber our value on legit ingress requests.
+	@noIngressPath not header X-Ingress-Path *
+	request_header @noIngressPath -X-Forwarded-Prefix
+	@hasIngressPath header X-Ingress-Path *
+	request_header @hasIngressPath X-Forwarded-Prefix {header.X-Ingress-Path}
+
 	# Lightweight health endpoint for HA watchdog checks.
 	handle /healthz {
 		rewrite * /healthz.php

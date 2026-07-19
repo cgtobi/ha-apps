@@ -1,0 +1,35 @@
+# see https://symfony.com/doc/current/reference/configuration/framework.html
+#
+# OVERRIDDEN UPSTREAM FILE — resync on image bumps.
+# This is a copy of upstream config/packages/framework.yaml with trusted-proxy
+# support added so the admin panel works behind the Home Assistant ingress proxy.
+#
+# HA ingress terminates at the supervisor proxy (a private IP), strips the
+# `/api/hassio_ingress/<token>` prefix, and forwards the request to the add-on
+# with `X-Ingress-Path: /api/hassio_ingress/<token>`. The Caddyfile maps that to
+# `X-Forwarded-Prefix`. For Symfony to honor the forwarded prefix (and host/proto)
+# it must (a) trust the proxy and (b) be told to read those forwarded headers.
+# Without this, redirects and router/asset URLs come out root-absolute and the
+# browser resolves them against the HA host root instead of the ingress base path.
+#
+# `private_ranges` (Symfony 6.3+) trusts all private CIDRs, which covers the
+# supervisor proxy IP without needing an env var. Keep the rest of this file in
+# sync with upstream on version bumps.
+framework:
+    secret: '%env(APP_SECRET)%'
+    session: true
+    assets:
+        version_strategy: 'App\Infrastructure\Http\UuidAssetVersioningStrategy'
+    trusted_proxies: 'private_ranges'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port', 'x-forwarded-prefix']
+
+when@dev:
+    framework:
+        profiler:
+            collect_serializer_data: true
+
+when@test:
+    framework:
+        test: true
+        session:
+            storage_factory_id: session.storage.factory.mock_file

@@ -2,25 +2,20 @@
 set -eu
 
 OPTIONS_FILE="/data/options.json"
-CONFIG_DIR="/data/config/app"
-CONFIG_FILE="${CONFIG_DIR}/config.yaml"
-CHALLENGE_HISTORY_FILE="/data/storage/files/strava-challenge-history.html"
 LOCK_DIR="/tmp/sfs-config-reconcile.lock"
 RUNTIME_DIR="/data/runtime"
 STATUS_FILE="${RUNTIME_DIR}/reconcile.status"
 STARTUP_MARKER_FILE="${RUNTIME_DIR}/health.startup"
 IMPORT_STARTUP_STAMP_FILE="${RUNTIME_DIR}/reconcile.import.startup"
-BUILD_STARTUP_STAMP_FILE="${RUNTIME_DIR}/reconcile.build.startup"
 BUILD_START_MARKER_FILE="${RUNTIME_DIR}/reconcile.build.start"
-BUILD_INDEX_FILE="/data/build/html/index.html"
 INGRESS_REWRITE_MARKER_FILE="${RUNTIME_DIR}/ingress-rewrite.last"
 MIGRATE_OK_FILE="${RUNTIME_DIR}/reconcile.migrate.ok"
 
-# Reconcile runs in phases so the slow data work (import + build-files) can run
-# in the background after the web server is already listening, instead of
-# blocking boot and starving the HA watchdog:
-#   config  - render/validate config, migrate DB, write status (fast; pre-serve)
-#   data    - import + build-files + prune + ingress rewrites (slow; backgrounded)
+# Reconcile runs in phases so the slow data work (import + build) can run in the
+# background after the web server is already listening, instead of blocking boot
+# and starving the HA watchdog:
+#   config  - migrate DB, write status (fast; pre-serve)
+#   data    - import+build (combined) + prune + ingress rewrites (slow; backgrounded)
 #   rewrite - ingress path rewrites only (the 30s loop)
 #   full    - config then data (default; back-compat for direct callers)
 PHASE="${SFS_RECONCILE_PHASE:-full}"
@@ -38,10 +33,6 @@ log_msg() {
 
 warn_msg() {
   log_msg "WARN: $*"
-}
-
-fatal_msg() {
-  log_msg "FATAL: $*"
 }
 
 is_upstream_mutex_conflict() {
@@ -67,17 +58,12 @@ if [ ! -f "$OPTIONS_FILE" ]; then
   exit 0
 fi
 
-APP_CONFIG_YAML="$(jq -r '.app_config_yaml // ""' "$OPTIONS_FILE")"
-RECONCILE_RUN_IMPORT="$(jq -r '.reconcile_run_import // true' "$OPTIONS_FILE")"
 IMPORT_MODE="$(jq -r '.import_mode // "stravaApi"' "$OPTIONS_FILE")"
 export IMPORT_MODE
 STRAVA_CLIENT_ID="$(jq -r '.strava_client_id // ""' "$OPTIONS_FILE")"
 STRAVA_CLIENT_SECRET="$(jq -r '.strava_client_secret // ""' "$OPTIONS_FILE")"
 STRAVA_REFRESH_TOKEN="$(jq -r '.strava_refresh_token // ""' "$OPTIONS_FILE")"
 TZ_VALUE="$(jq -r '.tz // ""' "$OPTIONS_FILE")"
-if [ -z "$APP_CONFIG_YAML" ]; then
-  exit 0
-fi
 
 # Reconcile can run during init before s6 environment propagation.
 # Export required runtime vars here so Symfony console commands have credentials.
@@ -94,7 +80,6 @@ if [ -n "$TZ_VALUE" ]; then
   export TZ="$TZ_VALUE"
 fi
 
-mkdir -p "$CONFIG_DIR"
 mkdir -p /data/storage/files
 mkdir -p "$RUNTIME_DIR"
 
@@ -269,41 +254,6 @@ if [ "$PHASE" = "rewrite" ]; then
 fi
 
 if [ "$PHASE" = "config" ] || [ "$PHASE" = "full" ]; then
-  CANDIDATE_CONFIG="${CONFIG_FILE}.candidate"
-  if ! php /usr/local/share/sfs/render-app-config.php "$OPTIONS_FILE" "$CANDIDATE_CONFIG" >/tmp/sfs-config-render.log 2>&1; then
-    fatal_msg "Could not render app config from add-on options"
-    sed -n '1,5p' /tmp/sfs-config-render.log || true
-    rm -f "$CANDIDATE_CONFIG"
-    exit 1
-  fi
-
-  if ! php /usr/local/share/sfs/validate-app-config.php "$CANDIDATE_CONFIG" >/tmp/sfs-config-validate.log 2>&1; then
-    fatal_msg "Invalid app_config_yaml in add-on options"
-    sed -n '1,5p' /tmp/sfs-config-validate.log || true
-    rm -f "$CANDIDATE_CONFIG"
-    exit 1
-  fi
-
-  CURRENT_SHA=""
-  if [ -f "$CONFIG_FILE" ]; then
-    CURRENT_SHA="$(sha256sum "$CONFIG_FILE" | awk '{print $1}')"
-  fi
-  CANDIDATE_SHA="$(sha256sum "$CANDIDATE_CONFIG" | awk '{print $1}')"
-
-  if [ "$CURRENT_SHA" != "$CANDIDATE_SHA" ]; then
-    mv "$CANDIDATE_CONFIG" "$CONFIG_FILE"
-    CHANGED="true"
-  else
-    rm -f "$CANDIDATE_CONFIG"
-    CHANGED="false"
-  fi
-
-  CHALLENGE_HISTORY_HTML="$(jq -r '.strava_challenge_history_html // ""' "$OPTIONS_FILE")"
-  if [ -n "$CHALLENGE_HISTORY_HTML" ]; then
-    printf '%s\n' "$CHALLENGE_HISTORY_HTML" > "$CHALLENGE_HISTORY_FILE"
-    log_msg "[reconcile] Updated ${CHALLENGE_HISTORY_FILE} from add-on options"
-  fi
-
   # Record migration outcome so the (possibly separate, backgrounded) data phase
   # only imports/builds against a schema that migrated cleanly. Cleared first so
   # a stale marker from a prior boot can never green-light the data phase.
@@ -316,6 +266,7 @@ if [ "$PHASE" = "config" ] || [ "$PHASE" = "full" ]; then
     # schema-create migration on a populated DB and fail. It also leaves the
     # schema reporting "at latest version", which the daemon's
     # #[RequiresUpToDateDatabaseSchema] commands require to not be blocked.
+    # app:db:migrate also seeds config->DB on first boot.
     log_msg "[reconcile] Running database migrations"
     if ! (cd /var/www && php bin/console app:db:migrate --no-interaction >/tmp/sfs-migrate.log 2>&1); then
       warn_msg "Failed to run database migrations during config reconcile"
@@ -326,38 +277,37 @@ if [ "$PHASE" = "config" ] || [ "$PHASE" = "full" ]; then
     fi
   fi
 
+  # `changed` is vestigial since config-diff detection was removed in the v5
+  # migration (config now lives in the DB); kept as a stable status-file shape.
   {
     printf 'updated_at=%s\n' "$(date +%Y-%m-%dT%H:%M:%S%z)"
-    printf 'changed=%s\n' "$CHANGED"
-    printf 'config_sha256=%s\n' "$CANDIDATE_SHA"
+    printf 'changed=%s\n' "true"
   } > "$STATUS_FILE"
 fi
 
 if [ "$PHASE" = "data" ] || [ "$PHASE" = "full" ]; then
-  # CHANGED is set by the config phase in the same process (full mode). In a
-  # standalone data phase it is unset; default false — a fresh boot already
-  # forces import/build via the per-startup markers below.
-  CHANGED="${CHANGED:-false}"
-
   if [ ! -f /var/www/bin/console ]; then
     log_msg "[reconcile] Skipping data phase (Symfony console not found)"
   elif [ ! -f "$MIGRATE_OK_FILE" ]; then
-    warn_msg "Skipping import/build-files (doctrine migrations did not complete cleanly)"
+    warn_msg "Skipping import/build (database migrations did not complete cleanly)"
   else
-    # Pick the import command for the configured mode. In "files" mode the daemon
-    # also runs app:cron:run-file-import every 5 min; this startup run gives an
-    # immediate first import. app:strava:import-data is a no-op in files mode.
+    # Pick the import command for the configured mode. Both run import and build
+    # in a single pass via --import --build. In "files" mode the daemon also runs
+    # app:cron:run-file-import every 5 min; this startup run gives an immediate
+    # first import.
     if [ "$IMPORT_MODE" = "files" ]; then
       IMPORT_COMMAND="app:cron:run-file-import"
     else
-      IMPORT_COMMAND="app:strava:import-data"
+      IMPORT_COMMAND="app:cron:run-strava-import"
     fi
 
+    # Run the combined import+build at most once per startup. init runs the
+    # config phase on boot; the backgrounded data phase runs this once. A fresh
+    # boot always runs because the startup marker differs from the last stamp.
+    # Steady-state data rebuilds run via the daemon's own import/build cron, not
+    # this script.
     RUN_IMPORT_NOW="true"
-    if [ "$RECONCILE_RUN_IMPORT" != "true" ]; then
-      RUN_IMPORT_NOW="false"
-      log_msg "[reconcile] Skipping import before build-files (reconcile_run_import=false)"
-    elif [ -r "$STARTUP_MARKER_FILE" ]; then
+    if [ -r "$STARTUP_MARKER_FILE" ]; then
       CURRENT_STARTUP_MARKER="$(tr -d '\n' < "$STARTUP_MARKER_FILE" || true)"
       LAST_IMPORT_MARKER=""
       if [ -r "$IMPORT_STARTUP_STAMP_FILE" ]; then
@@ -366,92 +316,41 @@ if [ "$PHASE" = "data" ] || [ "$PHASE" = "full" ]; then
 
       if [ -n "$CURRENT_STARTUP_MARKER" ] && [ "$CURRENT_STARTUP_MARKER" = "$LAST_IMPORT_MARKER" ]; then
         RUN_IMPORT_NOW="false"
-        log_msg "[reconcile] Skipping import before build-files (already attempted for this startup)"
+        log_msg "[reconcile] Skipping ${IMPORT_COMMAND} (already attempted for this startup)"
       fi
     fi
 
     if [ "$RUN_IMPORT_NOW" = "true" ]; then
+      # Record the startup this run covers so later reconciles this boot skip.
       if [ -r "$STARTUP_MARKER_FILE" ]; then
         tr -d '\n' < "$STARTUP_MARKER_FILE" > "$IMPORT_STARTUP_STAMP_FILE" || true
       fi
-    fi
 
-    if [ "$RUN_IMPORT_NOW" = "true" ]; then
-      log_msg "[reconcile] Running ${IMPORT_COMMAND}"
-      if run_console_command /tmp/sfs-import.log "$IMPORT_COMMAND"; then
+      # Stamp the marker just before build start, then wait 1s so every file the
+      # build writes has a strictly newer mtime than the marker (find compares at
+      # 1s granularity). prune_orphan_build_files keys off this boundary.
+      log_msg "[reconcile] Running ${IMPORT_COMMAND} --import --build"
+      touch "$BUILD_START_MARKER_FILE"
+      sleep 1
+      if run_console_command /tmp/sfs-import.log "$IMPORT_COMMAND" --import --build; then
         log_msg "[reconcile] ${IMPORT_COMMAND} finished"
+        prune_orphan_build_files "$BUILD_START_MARKER_FILE"
+        rewrite_build_files_for_ingress
+        rewrite_public_js_for_ingress
+        mark_ingress_rewrite_complete
       else
-        IMPORT_RC=$?
-        if [ "$IMPORT_RC" -eq 10 ]; then
-          warn_msg "Skipped ${IMPORT_COMMAND} during config reconcile (mutex already acquired by another process)"
+        RC=$?
+        if [ "$RC" -eq 10 ]; then
+          warn_msg "Skipped ${IMPORT_COMMAND} (mutex already acquired by another process)"
         else
-          warn_msg "Failed to run ${IMPORT_COMMAND} during config reconcile (exit_code=${IMPORT_RC})"
+          warn_msg "Failed to run ${IMPORT_COMMAND} (exit_code=${RC})"
         fi
-        sed -n '1,20p' /tmp/sfs-import.log || true
+        sed -n '1,40p' /tmp/sfs-import.log || true
+        log_msg "[reconcile] Running ingress rewrites on existing files despite import/build failure"
+        rewrite_build_files_for_ingress
+        rewrite_public_js_for_ingress
+        mark_ingress_rewrite_complete
       fi
-    else
-      :
-    fi
-
-    # Build at most once per startup unless the config changed. init runs the
-    # config phase on boot; the backgrounded data phase runs build once. A real
-    # config change (CHANGED=true) or a missing build index always rebuilds.
-    # Steady-state data rebuilds run via the daemon's own importDataAndBuildApp
-    # cron, not this script.
-    SHOULD_BUILD="true"
-    if [ "$CHANGED" != "true" ] && [ -f "$BUILD_INDEX_FILE" ]; then
-      if [ -r "$STARTUP_MARKER_FILE" ]; then
-        CURRENT_STARTUP_MARKER="$(tr -d '\n' < "$STARTUP_MARKER_FILE" || true)"
-        LAST_BUILD_MARKER=""
-        if [ -r "$BUILD_STARTUP_STAMP_FILE" ]; then
-          LAST_BUILD_MARKER="$(tr -d '\n' < "$BUILD_STARTUP_STAMP_FILE" || true)"
-        fi
-        if [ -n "$CURRENT_STARTUP_MARKER" ] && [ "$CURRENT_STARTUP_MARKER" = "$LAST_BUILD_MARKER" ]; then
-          SHOULD_BUILD="false"
-        fi
-      fi
-    fi
-
-    if [ "$SHOULD_BUILD" != "true" ]; then
-      log_msg "[reconcile] Skipping app:strava:build-files (already built this startup, config unchanged)"
-    else
-    # Stamp the marker just before build start, then wait 1s so every file the
-    # build writes has a strictly newer mtime than the marker (find compares at
-    # 1s granularity). prune_orphan_build_files keys off this boundary.
-    touch "$BUILD_START_MARKER_FILE"
-    sleep 1
-    log_msg "[reconcile] Running app:strava:build-files"
-    if run_console_command /tmp/sfs-build-files.log app:strava:build-files; then
-      log_msg "[reconcile] app:strava:build-files finished"
-      # Record the startup this build covers so later reconciles this boot skip.
-      # Only on success, so a failed build is retried by the next reconcile.
-      if [ -r "$STARTUP_MARKER_FILE" ]; then
-        tr -d '\n' < "$STARTUP_MARKER_FILE" > "$BUILD_STARTUP_STAMP_FILE" || true
-      fi
-      prune_orphan_build_files "$BUILD_START_MARKER_FILE"
-      rewrite_build_files_for_ingress
-      rewrite_public_js_for_ingress
-      mark_ingress_rewrite_complete
-    else
-      BUILD_RC=$?
-      if [ "$BUILD_RC" -eq 10 ]; then
-        warn_msg "Skipped app:strava:build-files during config reconcile (mutex already acquired by another process)"
-      else
-        warn_msg "Failed to run app:strava:build-files during config reconcile (exit_code=${BUILD_RC})"
-      fi
-      cp /tmp/sfs-build-files.log /data/runtime/sfs-build-files.last.log 2>/dev/null || true
-      printf 'failed_at=%s\n' "$(date +%Y-%m-%dT%H:%M:%S%z)" > /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
-      printf 'exit_code=%s\n' "$BUILD_RC" >> /data/runtime/sfs-build-files.last.meta 2>/dev/null || true
-      log_msg "[reconcile] build-files log (first 40 lines)"
-      sed -n '1,40p' /tmp/sfs-build-files.log || true
-      log_msg "[reconcile] build-files log (last 40 lines)"
-      tail -n 40 /tmp/sfs-build-files.log || true
-      log_msg "[reconcile] Full build-files log saved to /data/runtime/sfs-build-files.last.log"
-      log_msg "[reconcile] Running ingress rewrites on existing files despite build-files failure"
-      rewrite_build_files_for_ingress
-      rewrite_public_js_for_ingress
-      mark_ingress_rewrite_complete
-    fi
     fi
   fi
 fi

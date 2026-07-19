@@ -9,7 +9,7 @@ log() {
   echo "$(timestamp) [daemon] $*"
 }
 
-log "Starting Statistics for Strava daemon"
+log "Starting Dreeve daemon"
 
 RUNTIME_DIR="/data/runtime"
 PID_FILE="${RUNTIME_DIR}/daemon.pid"

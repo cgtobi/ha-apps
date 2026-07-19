@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0
+
+- feat: migrate to Dreeve v5.0.0 (upstream rebrand from Statistics for Strava)
+  - base image → `ghcr.io/dreeveapp/dreeve:v5.0.0`; add-on and Docker image labels renamed to Dreeve
+  - configuration now lives in the app's built-in admin panel (`/admin`) and its database; add-on options reduced to env-shaped keys (`import_mode`, `strava_*`, `tz`, `app_url`, `admin_username`, `admin_password`, `expose_share`, `caddy_log_level`); `app_config_yaml` and the old granular options removed
+  - inject the required v5 environment (`APP_URL`, `APP_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `IMPORT_MODE`); `APP_SECRET` is generated and persisted once (mode 600), `admin_password` is hashed at startup; env is propagated to services via `start.sh` since the v5 image no longer ships s6-overlay
+  - first start seeds an existing `config.yaml` into the database, then it is ignored
+  - database renamed to the v5 default `dreeve.db`; an existing `strava.db` (with its WAL/SHM sidecars) is renamed once on startup, keeping all data
+  - reconcile runs `app:db:migrate` and the v5 combined `app:cron:run-file-import` / `app:cron:run-strava-import --import --build`
+  - admin panel works under Home Assistant ingress: Caddy maps `X-Ingress-Path` to `X-Forwarded-Prefix` (stripping any client-supplied value), the app trusts the ingress proxy so redirects/router/asset URLs carry the base path, and `ConditionalRedirectGate` no longer self-redirect-loops under a base path
+  - resync overridden package config (flysystem storage keys, doctrine `Money` mapping) and drop the obsolete `AppConfig.php` override; the health check and startup preflight no longer require `config.yaml`
+  - docs and English/German option translations rewritten for the v5 model
+
 ## 0.4.98
 
 - chore: groundwork for v4.8.8 file import (watch dir + `addon_config:rw` mount). Config options (`import_mode`, `expose_share`) are not exposed in the UI yet — feature not ready for use

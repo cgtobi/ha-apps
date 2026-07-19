@@ -1,16 +1,11 @@
-# Statistics for Strava
+# Dreeve
 
 ## Import modes
 
-> **Not yet available.** File import is groundwork only — the `import_mode` and
-> `expose_share` options are intentionally hidden from the add-on UI and the
-> feature is not ready for use. The section below documents the planned behavior
-> for when it is enabled.
+The add-on supports two import modes, selected via the `import_mode` option:
 
-The add-on supports two import modes, selected via `import_mode`:
-
-- `stravaApi` (default): imports activities from the Strava API. Requires `strava_client_id`, `strava_client_secret`, `strava_refresh_token`.
-- `files`: imports activities from local `.fit` / `.tcx` / `.gpx` files. Requires no Strava credentials. The athlete is built from config, so `general.athlete.firstName`, `general.athlete.lastName` and `general.athlete.gender` must be set.
+- `stravaApi` (default): imports activities from the Strava API. Requires `strava_client_id`, `strava_client_secret` and `strava_refresh_token`.
+- `files`: imports activities from local `.fit` / `.tcx` / `.gpx` files you drop in the watch dir. Requires no Strava credentials. Set your athlete's first name, last name and gender in the admin panel (Web UI → `/admin`) so imported files can be attributed correctly.
 
 ### Providing files over SMB/CIFS (`files` mode)
 
@@ -22,46 +17,46 @@ The add-on supports two import modes, selected via `import_mode`:
 Notes:
 
 - The daemon scans the watch dir and imports every ~5 minutes; a startup import also runs once per container start.
-- Imported files are **deleted** from the watch dir by upstream after a successful import — this is expected behavior.
+- Imported files are **deleted** from the watch dir after a successful import — this is expected behavior.
 - `expose_share` only controls whether the watch dir is created and symlinked; the underlying mount (`addon_config:rw`) is always granted but scoped to this add-on's own config dir, not all of `/share`.
 
-## Required add-on options
+## Add-on options
 
-- `import_mode` (`stravaApi` or `files`; default `stravaApi`)
-- `expose_share` (`true`/`false`, default `false`; exposes the file-import watch dir over the mapped config dir)
-- `strava_client_id` (required in `stravaApi` mode)
-- `strava_client_secret` (required in `stravaApi` mode)
-- `strava_refresh_token` (required in `stravaApi` mode)
-- `tz`
-- `strava_challenge_history_html` (optional): paste HTML source from your Strava trophy-case page to import historical challenges/trophies
-- `app_config_yaml.general.appUrl` must be a non-empty string
-- Optional UI overrides (leave empty/zero to keep YAML values):
-  - `general_app_url` (absolute URL; when set, overrides `general.appUrl`)
-  - `general_app_subtitle`
-  - `general_profile_picture_url`
-  - `appearance_locale` (`en_US`, `fr_FR`, `it_IT`, `nl_BE`, `de_DE`, `pt_BR`, `pt_PT`, `sv_SE`, `zh_CN`)
-  - `appearance_unit_system` (`metric` or `imperial`; default `metric`)
-  - `appearance_time_format` (`12` or `24`; default `24`)
-  - `import_number_of_new_activities_to_process_per_import` (default `250`)
-  - `import_opt_in_to_segment_detail_import` (applied only if `import_opt_in_to_segment_detail_import_configured=true`)
-- Optional UI cron override for `importDataAndBuildApp`:
-  - `cron_import_expression` (5-field cron string; leave empty to keep YAML value)
-  - `cron_import_enabled` (`true`/`false`, used when `cron_import_expression` is set)
-- Optional startup import behavior:
-  - `reconcile_run_import` (`true`/`false`, default `true`; runs one import command during reconcile before build-files)
-- In `stravaApi` mode, startup fails fast if any required Strava option is empty. In `files` mode, Strava options are not required.
-- Startup validates `config.yaml` structure and required keys before services start (legacy optional sections are tolerated).
+The add-on options are intentionally minimal — they cover only what the app needs at boot. Everything else (appearance, dashboard layout, metrics, gear, gear maintenance, integrations, the import/build schedule, and so on) is configured **inside the app**, in the built-in admin panel at Web UI → `/admin`.
+
+| Option | Description |
+| --- | --- |
+| `import_mode` | `stravaApi` or `files`. Default `stravaApi`. See "Import modes" above. |
+| `strava_client_id` | OAuth client ID from your Strava API application. Required when `import_mode` is `stravaApi`. |
+| `strava_client_secret` | OAuth client secret from your Strava API application. Required when `import_mode` is `stravaApi`. |
+| `strava_refresh_token` | Refresh token used to obtain Strava API access tokens. Required when `import_mode` is `stravaApi`. |
+| `tz` | Container time zone, e.g. `Europe/Brussels`. |
+| `app_url` | The URL you reach the app on (include the port if used). Required — the app will not boot without it. For Home Assistant ingress, a value like `http://localhost:8080` is accepted; set a real, publicly reachable URL if you need direct access or Strava webhooks. |
+| `admin_username` | Login user for the admin panel. Default `admin`. |
+| `admin_password` | Login password for the admin panel, provided in plaintext here. The add-on hashes it internally into the app's `ADMIN_PASSWORD_HASH`; the plaintext is never stored in the app itself. Required — the admin panel needs a login before it can be used. |
+| `expose_share` | Expose the file-import watch dir over the add-on's mapped config dir (SMB/CIFS) so you can drop activity files into it. Used with `import_mode: files`. |
+| `caddy_log_level` | Log verbosity for the embedded web server: `DEBUG`, `INFO`, `WARN`, or `ERROR`. |
+
+You must set `admin_password` before the first start — the add-on fails fast at startup if it is empty, since the admin panel requires a login.
 
 > Privacy note: add-on options are persisted by Home Assistant on disk in `/data/options.json`.
 > Do not store unnecessary sensitive personal data in options.
 
-## Required persistent config file
+## Configuring the app
 
-This add-on requires:
+Once the add-on is running, open the Web UI and go to `/admin` to sign in with `admin_username` / `admin_password` and configure everything else: appearance and locale, dashboard layout, metrics, gear and gear maintenance, integrations (AI, notifications, etc.), and the import/build schedule. None of this lives in add-on options anymore.
 
-- `/data/config/app/config.yaml`
+## Upgrading from Statistics for Strava (v4)
 
-At startup, the add-on will fail fast if this file is missing.
+If you are upgrading an existing add-on install from the old YAML-based configuration model:
+
+1. **Back up your data first.** Copy the add-on's `storage/database` and `config` directories before upgrading.
+2. **First start migrates your config automatically.** On the first start after upgrading, the app reads your existing `config.yaml` once and copies every setting into its database. From that point on, configure the app in the admin panel (Web UI → `/admin`) — the add-on no longer reads or writes `config.yaml`.
+3. **Set an admin password before starting.** Set `admin_password` in the add-on options before the first start after upgrading — the admin panel now requires a login, and startup fails if this is empty.
+4. **Set `app_url`.** It is now required and the add-on refuses to start if it is empty. For Home Assistant ingress a value like `http://localhost:8080` is accepted; set a real, publicly reachable URL if you need direct access or Strava webhooks.
+5. **Two things are not migrated automatically** and must be redone by hand in the admin panel after the upgrade:
+   - **Images referenced from YAML** (gear and gear-maintenance images) — re-upload them.
+   - **Gear purchase prices** — re-enter them on the gear pages.
 
 ## Runtime model
 
@@ -69,12 +64,12 @@ This add-on runs both required processes inside one container:
 
 - Web UI: `frankenphp` on port `8080`
 - Scheduler/daemon: `bin/console app:daemon:run`
-- Health endpoint: `GET /healthz` on port `8080` (used by Home Assistant watchdog; returns `503` if required runtime paths/config are unavailable or daemon process is not alive; includes short startup grace based on container startup marker to avoid flapping)
+- Health endpoint: `GET /healthz` on port `8080` (used by Home Assistant watchdog; returns `503` if required runtime paths are unavailable or the daemon process is not alive; includes a short startup grace period to avoid flapping)
 - `/manifest.json` and `/assets/*` are served from Symfony `public/`; dashboard `.html` is served from `/data/build/html`.
 
 ## Persistent directories
 
-- `/data/config/app`
+- `/data/config/app` (holds the legacy `config.yaml` used only for the one-time v4→v5 migration described above)
 - `/data/storage/database`
 - `/data/storage/files`
 - `/data/storage/gear-maintenance`
@@ -84,68 +79,9 @@ This add-on runs both required processes inside one container:
 
 - Home Assistant Ingress is enabled and is the recommended way to access the UI from HA.
 - Direct port access via `8080/tcp` remains available for external/reverse-proxy access.
-- If `general.appUrl` remains `http://CHANGE_ME:8080/`, startup continues (for ingress compatibility), but webhook/public URL features should use a real public URL.
-- During config render, placeholder `general.appUrl` is normalized to `./` (unless `general_app_url` is set) so ingress-prefixed asset/API paths stay under the ingress base path.
-- `app_config_yaml` is authoritative: when non-empty, `/data/config/app/config.yaml` is reconciled from add-on options on startup and service restarts.
-- On each config reconcile invocation, the add-on runs Doctrine migrations and then `app:strava:build-files` so extracted UI overrides are applied.
-- When `reconcile_run_import=true`, reconcile runs one import once per container startup before build-files: `app:strava:import-data` in `stravaApi` mode, `app:cron:run-file-import` in `files` mode.
-- When `strava_challenge_history_html` is non-empty, reconcile writes it to `/data/storage/files/strava-challenge-history.html`.
-- The add-on creates `/var/www/storage -> /data/storage` so upstream challenge import code can read `storage/files/strava-challenge-history.html`.
-- Strava trophy-case HTML import currently requires Strava UI language to be English.
-- When `cron_import_expression` is non-empty, reconcile overwrites `daemon.cron` entry `importDataAndBuildApp` with `cron_import_expression` and `cron_import_enabled`.
-- Manual edits to `/data/config/app/config.yaml` will be overwritten on restart when `app_config_yaml` is set.
-- Init logs report which config source was used: `existing`, `options`, or `legacy`.
-- Application file logs default to `info` level to keep persistent logs readable.
-- Runtime secrets are injected via container environment only; no `.env.local` secrets file is written.
-- Strava webhooks still require public HTTPS reachability to your webhook endpoint (ingress URL is not a public webhook endpoint).
+- On startup, the add-on runs database migrations; on first boot this also seeds the database from any legacy `config.yaml` left by a v4 install.
+- The recurring import and dashboard build is handled automatically by the add-on's built-in daemon — there is nothing to schedule or configure for this.
+- Runtime secrets (Strava credentials, the admin password hash, the app secret) are injected via container environment only; no `.env.local` secrets file is written.
+- Strava webhooks still require public HTTPS reachability to your webhook endpoint (the Home Assistant ingress URL is not a public webhook endpoint).
 
-## Config template
-
-```yaml
-general:
-  appUrl: "http://CHANGE_ME:8080/"
-  appSubTitle: null
-  profilePictureUrl: null
-  athlete:
-    firstName: null  # required in files import mode
-    lastName: null   # required in files import mode
-    gender: null     # required in files import mode
-    birthday: "YYYY-MM-DD"
-    maxHeartRateFormula: "fox"
-    restingHeartRateFormula: "heuristicAgeBased"
-    heartRateZones:
-      mode: relative
-      default:
-        zone1: { from: 50, to: 60 }
-        zone2: { from: 61, to: 70 }
-        zone3: { from: 71, to: 80 }
-        zone4: { from: 81, to: 90 }
-        zone5: { from: 91, to: null }
-    weightHistory:
-      "YYYY-MM-DD": 100
-    ftpHistory:
-      cycling: []
-      running: []
-appearance:
-  locale: "en_US"
-  unitSystem: "metric"
-  timeFormat: 24
-  dateFormat:
-    short: "d-m-y"
-    normal: "d-m-Y"
-import:
-  numberOfNewActivitiesToProcessPerImport: 250
-  sportTypesToImport: []
-  activityVisibilitiesToImport: []
-  skipActivitiesRecordedBefore: null
-  activitiesToSkipDuringImport: []
-  optInToSegmentDetailImport: false
-zwift:
-  level: null
-  racingScore: null
-daemon:
-  cron:
-    - action: "importDataAndBuildApp"
-      expression: "0 14 * * *"
-      enabled: false
-```
+For the full application documentation (dashboard configuration, metrics, integrations, and more), see the [Dreeve docs](https://docs.dreeve.app). The upstream project lives at [github.com/dreeveapp/dreeve](https://github.com/dreeveapp/dreeve).

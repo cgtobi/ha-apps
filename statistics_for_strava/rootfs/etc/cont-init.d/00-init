@@ -62,6 +62,21 @@ elif [ -f "$TARGET_STORAGE_DIR" ]; then
 fi
 ln -s /data/storage "$TARGET_STORAGE_DIR"
 
+# One-time DB rename to match the v5 default filename. Existing v4 installs have
+# strava.db; v5 uses dreeve.db (both work, but we standardise on dreeve.db). The
+# DB is closed here (services start later), so renaming the file plus its WAL/SHM
+# sidecars is safe. Idempotent: only when strava.db exists and dreeve.db does not
+# (never clobber an existing dreeve.db).
+DB_DIR="/data/storage/database"
+if [ -f "$DB_DIR/strava.db" ] && [ ! -f "$DB_DIR/dreeve.db" ]; then
+  for suf in "" "-wal" "-shm"; do
+    if [ -f "$DB_DIR/strava.db${suf}" ]; then
+      mv "$DB_DIR/strava.db${suf}" "$DB_DIR/dreeve.db${suf}"
+    fi
+  done
+  log "Renamed existing strava.db to dreeve.db"
+fi
+
 # Backward-compatible import for existing user file locations.
 import_legacy_config_once() {
   LEGACY_CONFIG_IMPORTED="false"
@@ -74,11 +89,6 @@ import_legacy_config_once() {
       LEGACY_CONFIG_IMPORTED="true"
     fi
   fi
-}
-
-validate_yaml_file() {
-  yaml_file="$1"
-  php /usr/local/share/sfs/validate-app-config.php "$yaml_file" >/tmp/sfs-config-validate.log 2>&1
 }
 
 require_non_empty() {
@@ -101,14 +111,18 @@ read_opt() {
   jq -r --arg k "$key" '.[$k] // ""' "$OPTIONS_FILE"
 }
 
+IMPORT_MODE="$(read_opt import_mode)"
+: "${IMPORT_MODE:=stravaApi}"
 STRAVA_CLIENT_ID="$(read_opt strava_client_id)"
 STRAVA_CLIENT_SECRET="$(read_opt strava_client_secret)"
 STRAVA_REFRESH_TOKEN="$(read_opt strava_refresh_token)"
 TZ_VALUE="$(read_opt tz)"
-APP_CONFIG_YAML="$(read_opt app_config_yaml)"
-IMPORT_MODE="$(read_opt import_mode)"
+APP_URL="$(read_opt app_url)"
+ADMIN_USERNAME="$(read_opt admin_username)"
+: "${ADMIN_USERNAME:=admin}"
+ADMIN_PASSWORD="$(read_opt admin_password)"
 EXPOSE_SHARE="$(read_opt expose_share)"
-: "${IMPORT_MODE:=stravaApi}"
+CADDY_LOG_LEVEL="$(read_opt caddy_log_level)"
 
 # Strava credentials are only required in Strava-API import mode. In "files" mode
 # the app imports activity files from the watch dir and needs no Strava tokens.
@@ -118,6 +132,34 @@ if [ "$IMPORT_MODE" = "stravaApi" ]; then
   require_non_empty "strava_refresh_token" "$STRAVA_REFRESH_TOKEN"
 fi
 require_non_empty "tz" "$TZ_VALUE"
+require_non_empty "app_url" "$APP_URL"
+require_non_empty "admin_password" "$ADMIN_PASSWORD"
+
+# APP_SECRET signs the admin session cookie. It must be stable across restarts
+# (a changed secret invalidates every session) but need not be user-visible, so
+# generate it once and persist under /data.
+APP_SECRET_FILE="/data/runtime/app_secret"
+if [ ! -s "$APP_SECRET_FILE" ]; then
+  head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$APP_SECRET_FILE"
+  log "Generated new APP_SECRET"
+fi
+APP_SECRET="$(cat "$APP_SECRET_FILE")"
+chmod 600 "$APP_SECRET_FILE" 2>/dev/null || true
+
+# Hash the plaintext admin_password into the hash the app verifies against. The
+# app itself produces it so the algorithm always matches.
+ADMIN_PASSWORD_HASH="$(cd /var/www \
+  && COLUMNS=400 php bin/console security:hash-password "$ADMIN_PASSWORD" --no-interaction 2>/dev/null \
+  | grep -Eo '\$(argon2id|argon2i|2y)\$[^[:space:]]+' | tail -n1)"
+if [ -z "$ADMIN_PASSWORD_HASH" ]; then
+  fatal "Could not hash admin_password via security:hash-password"
+  exit 1
+fi
+# start.sh runs this script as a child, so exports do not propagate up. Persist
+# the hash to a runtime file (like app_secret) so start.sh can read it back and
+# export it to the daemon / web services (the v5 image has no s6 env dirs).
+printf '%s' "$ADMIN_PASSWORD_HASH" > /data/runtime/admin_password_hash
+chmod 600 /data/runtime/admin_password_hash 2>/dev/null || true
 
 # Expose the file-import watch dir via the mapped add-on config dir so activity
 # files can be provided over SMB/CIFS. Gated by expose_share: when off, the watch
@@ -138,57 +180,49 @@ if [ "$EXPOSE_SHARE" = "true" ]; then
   fi
 fi
 
-CONFIG_SOURCE="existing"
-if [ -n "$APP_CONFIG_YAML" ]; then
-  # Keep one authoritative reconciliation path used by init + services. Run only
-  # the fast config phase here (render/validate/migrate); the slow data phase
-  # (import + build-files) is launched in the background by start.sh after the
-  # web server is up, so boot does not block the HA watchdog.
-  if ! SFS_RECONCILE_PHASE=config sh /usr/local/bin/sfs-reconcile-config.sh; then
-    fatal "Could not reconcile /data/config/app/config.yaml from /data/options.json"
-    exit 1
-  fi
-  CONFIG_SOURCE="options"
-else
-  import_legacy_config_once
-  if [ "${LEGACY_CONFIG_IMPORTED}" = "true" ]; then
-    CONFIG_SOURCE="legacy"
-  fi
+# v5 reads config.yaml only once, on first boot, to seed the database. Preserve
+# any config left by a v4 add-on install so the migration can import it. After
+# that first boot the app ignores config.yaml entirely (settings live in the DB,
+# edited via /admin).
+import_legacy_config_once
+if [ "${LEGACY_CONFIG_IMPORTED}" = "true" ]; then
+  log "Imported legacy config.yaml for first-boot database migration"
 fi
 
-# Also inject env at s6 level so longrun services always receive these variables.
+# Legacy s6 env injection: the v5 upstream image ships no s6-overlay, so these
+# dirs do not exist and this loop is a no-op. Runtime env now reaches services
+# via start.sh (which reads /data/runtime/app_secret and admin_password_hash and
+# re-exports the option-derived vars). Kept as a harmless fallback.
 for env_dir in "$S6_ENV_DIR_1" "$S6_ENV_DIR_2"; do
   if [ -d "$env_dir" ]; then
-    printf '%s' "$STRAVA_CLIENT_ID" > "${env_dir}/STRAVA_CLIENT_ID"
-    printf '%s' "$STRAVA_CLIENT_SECRET" > "${env_dir}/STRAVA_CLIENT_SECRET"
-    printf '%s' "$STRAVA_REFRESH_TOKEN" > "${env_dir}/STRAVA_REFRESH_TOKEN"
-    printf '%s' "$TZ_VALUE" > "${env_dir}/TZ"
-    printf '%s' "$IMPORT_MODE" > "${env_dir}/IMPORT_MODE"
-    printf '%s' "$(read_opt caddy_log_level)" > "${env_dir}/CADDY_LOG_LEVEL"
+    printf '%s' "$IMPORT_MODE"            > "${env_dir}/IMPORT_MODE"
+    printf '%s' "$APP_URL"               > "${env_dir}/APP_URL"
+    printf '%s' "$APP_SECRET"            > "${env_dir}/APP_SECRET"
+    printf '%s' "$TZ_VALUE"              > "${env_dir}/TZ"
+    printf '%s' "$ADMIN_USERNAME"        > "${env_dir}/ADMIN_USERNAME"
+    printf '%s' "$ADMIN_PASSWORD_HASH"   > "${env_dir}/ADMIN_PASSWORD_HASH"
+    printf '%s' "$STRAVA_CLIENT_ID"      > "${env_dir}/STRAVA_CLIENT_ID"
+    printf '%s' "$STRAVA_CLIENT_SECRET"  > "${env_dir}/STRAVA_CLIENT_SECRET"
+    printf '%s' "$STRAVA_REFRESH_TOKEN"  > "${env_dir}/STRAVA_REFRESH_TOKEN"
+    printf '%s' "$CADDY_LOG_LEVEL"       > "${env_dir}/CADDY_LOG_LEVEL"
   fi
 done
 
-if [ ! -f "$PERSIST_CONFIG_DIR/config.yaml" ]; then
-  fatal "Missing required ${PERSIST_CONFIG_DIR}/config.yaml"
-  fatal "Provide app_config_yaml in add-on options or place config at ${PERSIST_CONFIG_DIR}/config.yaml"
+# Export the vars the init-time console commands need, then run the fast config
+# (migrate) phase. start.sh backgrounds the slow data phase after the web server
+# is up, so boot does not block the HA watchdog.
+export IMPORT_MODE APP_URL APP_SECRET ADMIN_USERNAME ADMIN_PASSWORD_HASH
+[ -n "$STRAVA_CLIENT_ID" ]     && export STRAVA_CLIENT_ID
+[ -n "$STRAVA_CLIENT_SECRET" ] && export STRAVA_CLIENT_SECRET
+[ -n "$STRAVA_REFRESH_TOKEN" ] && export STRAVA_REFRESH_TOKEN
+[ -n "$TZ_VALUE" ]             && export TZ="$TZ_VALUE"
+
+# Run the fast config phase (migrate only); start.sh backgrounds the data phase.
+if ! SFS_RECONCILE_PHASE=config sh /usr/local/bin/sfs-reconcile-config.sh; then
+  fatal "Database migration failed during init"
   exit 1
 fi
 
-if ! validate_yaml_file "$PERSIST_CONFIG_DIR/config.yaml"; then
-  fatal "Invalid ${PERSIST_CONFIG_DIR}/config.yaml structure"
-  sed -n '1,5p' /tmp/sfs-config-validate.log || true
-  exit 1
-fi
-
-if grep -Eq '^[[:space:]]*appUrl:[[:space:]]*["'\'']?http://CHANGE_ME:8080/?["'\'']?[[:space:]]*$' "$PERSIST_CONFIG_DIR/config.yaml"; then
-  warn "general.appUrl still uses placeholder http://CHANGE_ME:8080/"
-  warn "This is accepted for Home Assistant ingress usage, but set a real public URL for direct access and webhook callbacks"
-fi
-
-rm -f /tmp/sfs-config-validate.log
-
-log "Using config: ${PERSIST_CONFIG_DIR}/config.yaml"
-log "Config source: ${CONFIG_SOURCE}"
 log "Persistent data root: /data"
 
 log "Done"

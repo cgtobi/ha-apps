@@ -5,7 +5,6 @@ declare(strict_types=1);
 $startupGraceSeconds = 120;
 
 $checks = [
-    '/data/config/app/config.yaml' => ['exists' => true, 'readable' => true],
     '/data/storage/database' => ['exists' => true, 'writable' => true],
     '/data/storage/files/logs' => ['exists' => true, 'writable' => true],
     '/data/build/html' => ['exists' => true, 'readable' => true],

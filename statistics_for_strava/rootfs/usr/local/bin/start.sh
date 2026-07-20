@@ -38,6 +38,17 @@ run_daemon_forever() {
   done
 }
 
+# Lowercase uppercase activity-file extensions in the watch dir (e.g. Garmin
+# "*.FIT") so the upstream importer can read and delete them. Without this a
+# single uppercase-extension file is listed but never readable, aborting every
+# 5-minute import forever. See sfs-normalize-watch.sh for the full rationale.
+run_watch_normalize_forever() {
+  while true; do
+    sh /usr/local/bin/sfs-normalize-watch.sh >/dev/null 2>&1 || true
+    sleep 15
+  done
+}
+
 run_ingress_rewrite_forever() {
   while true; do
     started_at="$(date +%s)"
@@ -99,6 +110,12 @@ sh /usr/local/bin/sfs-startup-preflight.sh
 
 log "Launching ingress rewrite loop"
 run_ingress_rewrite_forever &
+
+# Normalise any files already waiting before the daemon's first import, then keep
+# normalising newly-dropped files on a short loop.
+sh /usr/local/bin/sfs-normalize-watch.sh >/dev/null 2>&1 || true
+log "Launching watch-dir extension normaliser"
+run_watch_normalize_forever &
 
 log "Launching daemon"
 run_daemon_forever &

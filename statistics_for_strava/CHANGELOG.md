@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.5
+
+- fix: activity files with an uppercase extension (e.g. Garmin's `*.FIT`) are now imported. Upstream rebuilds the filename with a lowercased extension when reading and deleting, so an uppercase-extension file was listed by the importer but could never be read (`Unable to read file from location: watch/<file>.fit` / `Failed to open stream: No such file`) and never deleted — aborting every 5-minute import indefinitely. The add-on now lowercases `fit`/`tcx`/`gpx` extensions in the watch directory before the importer runs.
+
 ## 0.5.4
 
 - fix: the file-import watch directory is now always a persisted path, so admin-panel uploads work without needing SMB. Previously the watch dir only existed when `expose_share` was enabled; with it off, admin uploads were written to the container's ephemeral filesystem (`/var/www/watch`) and were lost on restart/rebuild and could fail to import (`Unable to read ... watch/<file>`). It now resolves to `/data/watch` (persisted) by default, or `/config/watch` (also reachable over SMB/CIFS) when `expose_share` is on.

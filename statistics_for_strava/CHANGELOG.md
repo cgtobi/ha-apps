@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- fix: default `app_url` to `http://localhost:8080` (with a warning) instead of failing to start when it is empty — the add-on now boots out of the box after an upgrade; set a real URL for direct access or Strava webhooks
+
 ## 0.5.0
 
 - feat: migrate to Dreeve v5.0.0 (upstream rebrand from Statistics for Strava)

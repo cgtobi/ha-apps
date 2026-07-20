@@ -132,8 +132,20 @@ if [ "$IMPORT_MODE" = "stravaApi" ]; then
   require_non_empty "strava_refresh_token" "$STRAVA_REFRESH_TOKEN"
 fi
 require_non_empty "tz" "$TZ_VALUE"
-require_non_empty "app_url" "$APP_URL"
 require_non_empty "admin_password" "$ADMIN_PASSWORD"
+
+# The app's AppUrl value object rejects an empty/invalid URL, so APP_URL must be a
+# valid non-empty URL. For Home Assistant ingress the value is only a placeholder:
+# the real ingress prefix comes from X-Forwarded-Prefix, not app_url. So default to
+# a valid placeholder instead of failing, letting the add-on boot out of the box.
+# Direct-access / Strava-webhook users should set a real, publicly reachable URL.
+if [ -z "$APP_URL" ]; then
+  APP_URL="http://localhost:8080"
+  warn "app_url not set; defaulting to ${APP_URL} (set a real URL for direct access or Strava webhooks)"
+fi
+# Persist the resolved APP_URL so start.sh hands the same value to the services
+# (00-init runs as a child of start.sh, so its exports do not propagate up).
+printf '%s' "$APP_URL" > /data/runtime/app_url
 
 # APP_SECRET signs the admin session cookie. It must be stable across restarts
 # (a changed secret invalidates every session) but need not be user-visible, so

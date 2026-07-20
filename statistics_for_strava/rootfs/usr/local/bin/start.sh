@@ -77,13 +77,17 @@ if [ -f "$OPTIONS_FILE" ]; then
   export TZ="$(jq -r '.tz // ""' "$OPTIONS_FILE")"
   export CADDY_LOG_LEVEL="$(jq -r '.caddy_log_level // ""' "$OPTIONS_FILE")"
   export IMPORT_MODE="$(jq -r '.import_mode // "stravaApi"' "$OPTIONS_FILE")"
-  export APP_URL="$(jq -r '.app_url // ""' "$OPTIONS_FILE")"
   export ADMIN_USERNAME="$(jq -r '.admin_username // "admin"' "$OPTIONS_FILE")"
 fi
 
-# APP_SECRET and ADMIN_PASSWORD_HASH are generated/computed by 00-init and
-# persisted under /data/runtime. Guard with -s so an unexpected empty file does
-# not export a blank value.
+# APP_URL, APP_SECRET and ADMIN_PASSWORD_HASH are resolved by 00-init (APP_URL is
+# defaulted when the option is empty; the other two are generated/computed) and
+# persisted under /data/runtime. Read them back here so the services get the same
+# values 00-init used. Guard with -s so an unexpected empty file does not export a
+# blank value (a blank APP_URL would make the app's AppUrl value object throw).
+if [ -s /data/runtime/app_url ]; then
+  export APP_URL="$(cat /data/runtime/app_url)"
+fi
 if [ -s /data/runtime/app_secret ]; then
   export APP_SECRET="$(cat /data/runtime/app_secret)"
 fi

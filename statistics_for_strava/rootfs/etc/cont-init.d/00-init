@@ -24,10 +24,11 @@ HA_ADDON_CONFIG_DIR="/addon_configs/local_statistics_for_strava"
 PERSIST_CONFIG_DIR="/data/config/app"
 TARGET_CONFIG_DIR="/var/www/config/app"
 TARGET_STORAGE_DIR="/var/www/storage"
-# File-import watch dir. addon_config:rw mounts the add-on's config dir at /config
-# inside the container (host: /addon_configs/local_statistics_for_strava), so files
-# dropped here over SMB/CIFS are picked up by the upstream file-import pipeline.
-WATCH_SOURCE_DIR="/config/watch"
+# File-import watch dir. The app writes admin-panel uploads to /var/www/watch and
+# the daemon reads from it, so it MUST resolve to a persisted directory (otherwise
+# uploads land in the container's ephemeral layer and vanish on restart/rebuild).
+# The source is chosen below based on expose_share: /config/watch (addon_config,
+# also reachable over SMB/CIFS) when exposed, else /data/watch (persisted, local).
 TARGET_WATCH_DIR="/var/www/watch"
 STARTUP_MARKER_FILE="/data/runtime/health.startup"
 S6_ENV_DIR_1="/var/run/s6/container_environment"
@@ -173,23 +174,33 @@ fi
 printf '%s' "$ADMIN_PASSWORD_HASH" > /data/runtime/admin_password_hash
 chmod 600 /data/runtime/admin_password_hash 2>/dev/null || true
 
-# Expose the file-import watch dir via the mapped add-on config dir so activity
-# files can be provided over SMB/CIFS. Gated by expose_share: when off, the watch
-# dir stays internal/unused. Same link idiom as the storage symlink above.
+# Always point the watch dir at a PERSISTED location. Admin-panel uploads write
+# to /var/www/watch (flysystem default.storage 'watch/') and the daemon reads from
+# the same path, so it must survive restarts and be identical for both. When
+# expose_share is on, use the mapped add-on config dir (also reachable over
+# SMB/CIFS); otherwise use /data/watch (persisted, admin-upload only). Same link
+# idiom as the storage symlink above.
 if [ "$EXPOSE_SHARE" = "true" ]; then
-  if [ -L "$TARGET_WATCH_DIR" ]; then
-    rm -f "$TARGET_WATCH_DIR"
-  elif [ -d "$TARGET_WATCH_DIR" ]; then
-    rm -rf "$TARGET_WATCH_DIR"
-  elif [ -f "$TARGET_WATCH_DIR" ]; then
-    rm -f "$TARGET_WATCH_DIR"
-  fi
-  if mkdir -p "$WATCH_SOURCE_DIR" 2>/dev/null; then
-    ln -s "$WATCH_SOURCE_DIR" "$TARGET_WATCH_DIR"
-    log "File-import watch dir exposed at ${WATCH_SOURCE_DIR} (host: /addon_configs/local_statistics_for_strava/watch)"
+  WATCH_SOURCE_DIR="/config/watch"
+else
+  WATCH_SOURCE_DIR="/data/watch"
+fi
+if [ -L "$TARGET_WATCH_DIR" ]; then
+  rm -f "$TARGET_WATCH_DIR"
+elif [ -d "$TARGET_WATCH_DIR" ]; then
+  rm -rf "$TARGET_WATCH_DIR"
+elif [ -f "$TARGET_WATCH_DIR" ]; then
+  rm -f "$TARGET_WATCH_DIR"
+fi
+if mkdir -p "$WATCH_SOURCE_DIR" 2>/dev/null; then
+  ln -s "$WATCH_SOURCE_DIR" "$TARGET_WATCH_DIR"
+  if [ "$EXPOSE_SHARE" = "true" ]; then
+    log "File-import watch dir at ${WATCH_SOURCE_DIR} (host: /addon_configs/local_statistics_for_strava/watch, exposed over SMB/CIFS)"
   else
-    warn "expose_share=true but ${WATCH_SOURCE_DIR} is not writable; is 'addon_config:rw' mapped?"
+    log "File-import watch dir at ${WATCH_SOURCE_DIR} (persisted; enable expose_share to drop files over SMB/CIFS)"
   fi
+else
+  warn "Could not create watch dir ${WATCH_SOURCE_DIR}"
 fi
 
 # v5 reads config.yaml only once, on first boot, to seed the database. Preserve

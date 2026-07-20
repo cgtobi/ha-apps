@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4
+
+- fix: the file-import watch directory is now always a persisted path, so admin-panel uploads work without needing SMB. Previously the watch dir only existed when `expose_share` was enabled; with it off, admin uploads were written to the container's ephemeral filesystem (`/var/www/watch`) and were lost on restart/rebuild and could fail to import (`Unable to read ... watch/<file>`). It now resolves to `/data/watch` (persisted) by default, or `/config/watch` (also reachable over SMB/CIFS) when `expose_share` is on.
+
 ## 0.5.3
 
 - fix: in files mode the add-on no longer imports on startup — it only rebuilds the dashboard, leaving all file imports to the daemon. This forces a fresh build on every restart and prevents the startup import from racing the daemon over the shared watch directory (which could delete a file mid-read: `Unable to read ... watch/<file>: No such file`). Strava-API mode still imports and builds on startup.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.6
+
+- feat: bump Dreeve to v5.0.1 [Changelog](https://docs.dreeve.app/#/changelog)
+
 ## 0.5.5
 
 - fix: activity files with an uppercase extension (e.g. Garmin's `*.FIT`) are now imported. Upstream rebuilds the filename with a lowercased extension when reading and deleting, so an uppercase-extension file was listed by the importer but could never be read (`Unable to read file from location: watch/<file>.fit` / `Failed to open stream: No such file`) and never deleted — aborting every 5-minute import indefinitely. The add-on now lowercases `fit`/`tcx`/`gpx` extensions in the watch directory before the importer runs.

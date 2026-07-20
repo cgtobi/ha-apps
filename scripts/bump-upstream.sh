@@ -7,8 +7,8 @@ VERSION_FILE="${ADDON_DIR}/.upstream-version"
 DOCKERFILE="${ADDON_DIR}/Dockerfile"
 CONFIG_YAML="${ADDON_DIR}/config.yaml"
 CHANGELOG="${ADDON_DIR}/CHANGELOG.md"
-IMAGE_REPO="ghcr.io/robiningelbrecht/statistics-for-strava"
-UPSTREAM_GIT_URL="https://github.com/robiningelbrecht/statistics-for-strava.git"
+IMAGE_REPO="ghcr.io/dreeveapp/dreeve"
+UPSTREAM_GIT_URL="https://github.com/dreeveapp/dreeve.git"
 CHECK_SCRIPT="${ROOT_DIR}/scripts/check-release-consistency.sh"
 
 usage() {
@@ -69,7 +69,7 @@ prepend_changelog_release() {
     BEGIN {
       inserted = 0
       skip_first_blank_after_header = 0
-      new_line = "- feat: bump Statistics for Strava to " upstream_version " [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)"
+      new_line = "- feat: bump Dreeve to " upstream_version " [Changelog](https://docs.dreeve.app/#/changelog)"
     }
     /^# Changelog[[:space:]]*$/ && !inserted {
       print
@@ -137,13 +137,13 @@ check_sync() {
       }
       in_latest = 0
     }
-    in_latest && /^- feat: bump Statistics for Strava to v[0-9]/ {
+    in_latest && /^- feat: bump Dreeve to v[0-9]/ {
       print
       exit
     }
   ' "$CHANGELOG")"
 
-  expected_line="- feat: bump Statistics for Strava to ${version} [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)"
+  expected_line="- feat: bump Dreeve to ${version} [Changelog](https://docs.dreeve.app/#/changelog)"
   if [ "$latest_bump_line" != "$expected_line" ]; then
     echo "Mismatch: latest changelog bump line is '${latest_bump_line}', expected '${expected_line}'" >&2
     fail=1

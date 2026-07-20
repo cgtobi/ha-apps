@@ -291,14 +291,24 @@ if [ "$PHASE" = "data" ] || [ "$PHASE" = "full" ]; then
   elif [ ! -f "$MIGRATE_OK_FILE" ]; then
     warn_msg "Skipping import/build (database migrations did not complete cleanly)"
   else
-    # Pick the import command for the configured mode. Both run import and build
-    # in a single pass via --import --build. In "files" mode the daemon also runs
-    # app:cron:run-file-import every 5 min; this startup run gives an immediate
-    # first import.
+    # Pick the startup command + phases for the configured mode.
+    #
+    # In "files" mode the mandatory v5 daemon is the sole importer (it runs
+    # app:cron:run-file-import every 5 min). If this startup run ALSO imported, two
+    # processes would work the shared watch dir; because the importer deletes each
+    # file as it finishes, an overlap makes one process read a file the other has
+    # already removed ("Unable to read ... watch/<file>: No such file"). So on
+    # startup we only BUILD here (regenerate the dashboard from the existing
+    # database on every restart) and leave all file importing to the daemon.
+    #
+    # In "stravaApi" mode there is no watch dir to contend for, so we still run a
+    # full import+build on startup to give an immediate first import.
     if [ "$IMPORT_MODE" = "files" ]; then
       IMPORT_COMMAND="app:cron:run-file-import"
+      IMPORT_FLAGS="--build"
     else
       IMPORT_COMMAND="app:cron:run-strava-import"
+      IMPORT_FLAGS="--import --build"
     fi
 
     # Run the combined import+build at most once per startup. init runs the
@@ -329,10 +339,10 @@ if [ "$PHASE" = "data" ] || [ "$PHASE" = "full" ]; then
       # Stamp the marker just before build start, then wait 1s so every file the
       # build writes has a strictly newer mtime than the marker (find compares at
       # 1s granularity). prune_orphan_build_files keys off this boundary.
-      log_msg "[reconcile] Running ${IMPORT_COMMAND} --import --build"
+      log_msg "[reconcile] Running ${IMPORT_COMMAND} ${IMPORT_FLAGS}"
       touch "$BUILD_START_MARKER_FILE"
       sleep 1
-      if run_console_command /tmp/sfs-import.log "$IMPORT_COMMAND" --import --build; then
+      if run_console_command /tmp/sfs-import.log "$IMPORT_COMMAND" $IMPORT_FLAGS; then
         log_msg "[reconcile] ${IMPORT_COMMAND} finished"
         prune_orphan_build_files "$BUILD_START_MARKER_FILE"
         rewrite_build_files_for_ingress

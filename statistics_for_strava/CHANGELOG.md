@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3
+
+- fix: in files mode the add-on no longer imports on startup — it only rebuilds the dashboard, leaving all file imports to the daemon. This forces a fresh build on every restart and prevents the startup import from racing the daemon over the shared watch directory (which could delete a file mid-read: `Unable to read ... watch/<file>: No such file`). Strava-API mode still imports and builds on startup.
+
 ## 0.5.2
 
 - fix: make `admin_password` a required option so Home Assistant flags it in the Configuration UI before start, instead of the add-on crash-looping with the requirement only visible in the log

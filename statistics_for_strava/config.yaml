@@ -1,5 +1,5 @@
 name: "Dreeve"
-version: "0.5.1"
+version: "0.5.2"
 slug: "statistics_for_strava"
 description: "Dashboard for your sports & fitness data"
 url: "https://github.com/dreeveapp/dreeve"
@@ -54,6 +54,6 @@ schema:
   tz: str
   app_url: str?
   admin_username: str
-  admin_password: password?
+  admin_password: password
   expose_share: bool
   caddy_log_level: "list(DEBUG|INFO|WARN|ERROR)"

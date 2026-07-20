@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2
+
+- fix: make `admin_password` a required option so Home Assistant flags it in the Configuration UI before start, instead of the add-on crash-looping with the requirement only visible in the log
+
 ## 0.5.1
 
 - fix: default `app_url` to `http://localhost:8080` (with a warning) instead of failing to start when it is empty — the add-on now boots out of the box after an upgrade; set a real URL for direct access or Strava webhooks

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.7
+
+- feat: bump Dreeve to v5.0.2 [Changelog](https://docs.dreeve.app/#/changelog)
+
 ## 0.5.6
 
 - feat: bump Dreeve to v5.0.1 [Changelog](https://docs.dreeve.app/#/changelog)

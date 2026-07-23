@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.8
+
+- fix: navigating away from a depth-2 page (e.g. Gear → Maintenance or Recording devices) no longer lands on an invalid URL such as `/gear/dashboard`. The SPA router pushes its route verbatim into `history.pushState` and fetches `<route>.html`, and the ingress shim rewrote in-app paths to document-relative `./x`, which resolve against the current page's directory — correct only at depth 1. On a depth-2 route `./dashboard` became `/gear/dashboard` (blank page, 404 content fetch). The shim now re-anchors in-app routes/paths to a root-absolute app base (the ingress prefix, or empty on direct `:8080` access), which is depth-independent, and patches `history.pushState`/`replaceState` so the address bar stays correct on any page.
+
 ## 0.5.7
 
 - feat: bump Dreeve to v5.0.2 [Changelog](https://docs.dreeve.app/#/changelog)

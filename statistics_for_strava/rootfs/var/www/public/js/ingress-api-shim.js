@@ -24,48 +24,73 @@
     return false;
   }
 
-  function normalize(url) {
-    if (typeof url !== "string") {
+  // Resolve an in-app route or path to a ROOT-ABSOLUTE URL under the app base,
+  // independent of the current document's depth. Under HA ingress the base is
+  // the /api/hassio_ingress/<token> prefix; on direct :8080 access it is empty
+  // so root-absolute paths pass through unchanged.
+  //
+  // This replaces the previous document-relative "./x" rewrite. "./x" resolves
+  // against the current page's directory, so on a depth-2 route (e.g.
+  // /gear/maintenance) it produced /gear/x instead of /x — clicking a top-nav
+  // link from the gear maintenance/recording-devices pages navigated to an
+  // invalid /gear/dashboard, and same-page data/API fetches 404'd. A root-
+  // absolute base prefix is depth-safe: it yields the same URL from any page.
+  function toAppAbsolute(url) {
+    if (typeof url !== "string" || !url) {
       return url;
     }
-    if (url.indexOf("/api./") === 0) {
-      url = "/api/" + url.substring(6);
+    if (/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+      return url; // absolute URL with scheme: http:, https:, mailto:, data:, blob:
+    }
+    if (url.indexOf("//") === 0) {
+      return url; // protocol-relative
     }
     if (url.indexOf("/api/hassio_ingress/") === 0) {
-      return url;
+      return url; // already ingress-prefixed
     }
-    if (url.indexOf("api./") === 0) {
-      return "./api/" + url.substring(5);
-    }
-    // Normalize app-relative route fragments that miss "./" prefix.
-    if (
+    // Only re-anchor things that are in-app paths/routes; leave fragment-only,
+    // query-only and bare cross-references untouched.
+    var isAppPath =
+      url.charAt(0) === "/" ||
+      url.indexOf("./") === 0 ||
       url.indexOf("api/") === 0 ||
       url.indexOf("activity/") === 0 ||
       url.indexOf("segment/") === 0 ||
       url.indexOf("heatmap/") === 0 ||
-      url.indexOf("month/") === 0
-    ) {
-      return "./" + url;
+      url.indexOf("month/") === 0;
+    if (!isAppPath) {
+      return url;
     }
-    // Generic ingress-safe normalization for root-absolute in-app requests.
-    if (url.indexOf("/") === 0 && url.indexOf("//") !== 0) {
-      return "." + url;
+    var base = getIngressBasePath(); // "" (direct) or "/api/hassio_ingress/<token>"
+    var rest = url.replace(/^\.?\//, ""); // strip a leading "./" or "/"
+    return base + "/" + rest;
+  }
+
+  function normalize(url) {
+    if (typeof url !== "string") {
+      return url;
     }
+    // Undo an over-eager "/api/" -> "/api./" mangle left by the build rewrite.
+    if (url.indexOf("/api./") === 0) {
+      url = "/api/" + url.substring(6);
+    } else if (url.indexOf("api./") === 0) {
+      url = "api/" + url.substring(5);
+    }
+    // Reduce an origin-qualified same-origin URL to its path so it re-anchors to
+    // the app base below; cross-origin URLs fall through untouched.
     try {
       var origin = window.location && window.location.origin ? window.location.origin : "";
-      if (origin && url.indexOf(origin + "/api./") === 0) {
-        url = origin + "/api/" + url.substring((origin + "/api./").length);
-      }
-      if (origin && url.indexOf(origin + "/api/hassio_ingress/") === 0) {
-        return url;
-      }
       if (origin && url.indexOf(origin + "/") === 0) {
-        return "." + url.substring(origin.length);
+        var path = url.substring(origin.length);
+        if (path.indexOf("/api./") === 0) {
+          path = "/api/" + path.substring(6);
+        }
+        url = path;
       }
     } catch (_e) {
       // Keep original URL on parse failures.
     }
-    return url;
+    return toAppAbsolute(url);
   }
 
   function getIngressBasePath() {
@@ -263,6 +288,26 @@
     args[1] = url;
     return originalOpen.apply(this, args);
   };
+
+  // The SPA router pushes the raw route (e.g. "./dashboard") straight into
+  // history.pushState, so the address bar inherited the current page's depth
+  // and showed /gear/dashboard when navigating away from a depth-2 gear page.
+  // Re-anchor in-app route URLs to the app base so the address bar (and any
+  // reload from it) stays correct at any depth.
+  function patchHistory(methodName) {
+    var native = window.history && window.history[methodName];
+    if (typeof native !== "function") {
+      return;
+    }
+    window.history[methodName] = function (state, title, url) {
+      if (typeof url === "string" && url) {
+        url = toAppAbsolute(url);
+      }
+      return native.call(this, state, title, url);
+    };
+  }
+  patchHistory("pushState");
+  patchHistory("replaceState");
 
   if (typeof window.EventSource === "function") {
     var NativeEventSource = window.EventSource;

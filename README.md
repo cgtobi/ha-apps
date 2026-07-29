@@ -51,7 +51,7 @@ The Dreeve Polar Connector add-on uses the upstream GHCR image as its base image
 
 ```sh
 docker build -t dreeve-polar-connector-local ./dreeve_polar_connector
-docker build --build-arg BUILD_FROM=ghcr.io/cgtobi/dreeve-polar-connector:v1.0.0 -t dreeve-polar-connector-local ./dreeve_polar_connector
+docker build --build-arg BUILD_FROM=ghcr.io/cgtobi/dreeve-polar-connector:0.1.0 -t dreeve-polar-connector-local ./dreeve_polar_connector
 ```
 
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg

@@ -21,8 +21,8 @@ providers they use.
 |---|---|
 | `Dockerfile` | `ARG BUILD_FROM=<upstream image>:<tag>` carrying its own default — Supervisor stopped providing `BUILD_FROM` automatically in 2026.04.0 — then `FROM ${BUILD_FROM}`; `HEALTHCHECK NONE`; `ENTRYPOINT ["/usr/local/bin/ha-start.sh"]` with `CMD []` |
 | `config.yaml` | `map: [all_addon_configs:rw]`, `stage: experimental` while the provider API is unofficial, `watchdog: "tcp://[HOST]:[PORT:8080]"` |
-| `.upstream-version` | The pinned tag, e.g. `v1.0.0` |
-| `.upstream-repo` | `image_repo`, `git_url`, `display_name`, `changelog_url` — read by `scripts/bump-upstream.sh` |
+| `.upstream-version` | The pinned **image** tag, e.g. `v1.0.0` or `0.1.0` — whatever the upstream registry actually serves, which is not always the git tag |
+| `.upstream-repo` | `image_repo`, `git_url`, `display_name`, `changelog_url`, `tag_prefix` — read by `scripts/bump-upstream.sh` |
 | `config.yaml` + `CHANGELOG.md` | Must agree; `.githooks/pre-commit` enforces it per add-on |
 | `rootfs/usr/local/bin/ha-start.sh` | Prepare env → (create session, credential providers only) → status loop → `exec` the upstream entrypoint |
 | `translations/en.yaml`, `de.yaml` | Option labels, one entry per option |
@@ -140,9 +140,28 @@ bump script itself generates for the pinned tag — `- feat: bump <display_name>
 [Changelog](<changelog_url>)`, anywhere in the file, since docs-only and fix-only releases sit on top
 of it — or `bump-upstream.sh check` and `.githooks/pre-commit` will reject the commit.
 
-An upstream repository that is not public yet is a real constraint: `bump-upstream.sh <addon>` resolves
-the newest tag with `git ls-remote`, which hangs or fails on a private or missing repository. Pin
-`.upstream-version` and the `ARG BUILD_FROM` default by hand until it is published; `check` works
+**Check the published image tag, not the git tag.** These differ more often than they look like they
+should. `dreeve-polar-connector`'s release workflow renders git tag `v0.1.0` as image tag `0.1.0`,
+because `docker/metadata-action`'s `{{version}}` strips the leading `v`; the Garmin and Dreeve upstreams
+publish `v`-prefixed tags. Each `.upstream-repo` therefore declares `tag_prefix` (`v`, or empty), which
+`bump-upstream.sh` applies when it resolves a tag — a missing field means `v`, the historical
+assumption. Getting this wrong is not subtle at install time (`not found` on `load metadata`), but it is
+invisible to every local check, so read the registry before pinning:
+
+```sh
+TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:<owner>/<image>:pull&service=ghcr.io" | \
+  python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])')
+curl -s -H "Authorization: Bearer $TOKEN" https://ghcr.io/v2/<owner>/<image>/tags/list
+```
+
+Two more registry facts that cost a build each: Home Assistant's Supervisor pulls **anonymously**, so a
+private GHCR package fails with 401 however the repository is configured — package visibility is set
+per package and can be public while the source repository stays private. And Supervisor builds add-on
+images with `pull: True`, so preloading the base image into the host's Docker does not help.
+
+An upstream repository that is not public yet is a related constraint: `bump-upstream.sh <addon>`
+resolves the newest tag with `git ls-remote`, which hangs or fails on a private or missing repository.
+Pin `.upstream-version` and the `ARG BUILD_FROM` default by hand until it is published; `check` works
 regardless, because it only compares local files.
 
 ## What is provider-specific

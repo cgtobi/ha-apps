@@ -32,6 +32,16 @@ select_addon() {
   UPSTREAM_GIT_URL="$(read_repo_field git_url)"
   DISPLAY_NAME="$(read_repo_field display_name)"
   CHANGELOG_URL="$(read_repo_field changelog_url)"
+  # Image tags do not always carry the git tag's shape. dreeve and dreeve-garmin-connector publish
+  # v-prefixed tags (v1.0.0); dreeve-polar-connector publishes bare ones (0.1.0), because
+  # docker/metadata-action's {{version}} strips the leading v. Absent field means 'v', which is what
+  # every add-on assumed before this was configurable - so an empty value has to be distinguishable
+  # from a missing one, hence the grep rather than a defaulted read.
+  if grep -q '^tag_prefix=' "$REPO_FILE"; then
+    TAG_PREFIX="$(read_repo_field tag_prefix)"
+  else
+    TAG_PREFIX="v"
+  fi
 }
 
 usage() {
@@ -265,11 +275,10 @@ run_bump() {
 }
 
 normalize_version() {
+  # Accepts either shape on the command line and renders the one this upstream actually publishes,
+  # so `bump dreeve_polar_connector v0.2.0` still pins the existing image tag 0.2.0.
   input="$1"
-  case "$input" in
-    v*) echo "$input" ;;
-    *) echo "v${input}" ;;
-  esac
+  echo "${TAG_PREFIX}${input#v}"
 }
 
 fetch_latest_upstream_version() {
@@ -299,7 +308,9 @@ fetch_latest_upstream_version() {
     exit 1
   fi
 
-  echo "v${latest}"
+  # The git tag's own prefix is discarded above; what goes into the pin is the prefix this upstream's
+  # published image tags use, which is not always the same thing.
+  echo "${TAG_PREFIX}${latest}"
 }
 
 MODE="${1:-}"

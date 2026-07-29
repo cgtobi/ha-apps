@@ -9,11 +9,26 @@
    Assistant on, with port 8080.
 3. Put the client's ID and secret in `polar_client_id` and `polar_client_secret`, and set
    `public_url` to `http://<home-assistant-host>:8080` (no trailing slash, no `/callback`).
-4. Start the add-on, then click **OPEN WEB UI** and approve access at Polar. Syncing starts
-   immediately.
+4. Start the add-on and open `http://<home-assistant-host>:8080/authorize` in a browser, then approve
+   access at Polar. Syncing starts immediately. The add-on log prints that exact URL, and the add-on
+   page's **OPEN WEB UI** button opens it too — when the button is missing, see below.
 
 Until step 4 the add-on log reports `authorization=required` and nothing is delivered. That is
 expected, not a failure.
+
+**No OPEN WEB UI button?** Home Assistant builds it from the host port published for 8080, taken from
+the add-on's **Configuration → Network** panel. If that field is empty the button disappears. Fill it
+in with `8080` and restart, or just open the URL above by hand — the button is only a shortcut.
+
+**Open `/authorize`, never `/callback`.** `/callback` is where Polar sends the browser back, carrying a
+`code` and the `state` that `/authorize` issued. Opening it yourself produces *"The state parameter is
+missing, unknown or expired"*, which is the connector refusing an unsolicited callback rather than a
+misconfiguration.
+
+**Changed the host port?** Everything must agree: the port in **Network**, the `public_url` option, and
+the redirect URL registered with your Polar client. Polar rejects any redirect URI that is not
+registered verbatim, so remapping 8080 to, say, 8180 means registering
+`http://<home-assistant-host>:8180/callback` at Polar as well.
 
 The token Polar issues does not expire and lives in the add-on's own data directory, so this is a
 one-time exercise. You may clear `polar_client_secret` afterwards, at the cost of having to set it
@@ -48,8 +63,7 @@ you set it.
 
 Polar redirects the browser back to a URL registered with your client beforehand. Home Assistant's
 ingress URL contains a session token that changes whenever the add-on restarts, so it can never be
-registered. The add-on therefore publishes port 8080 on the host, and **OPEN WEB UI** opens
-`/authorize` there.
+registered. The add-on therefore publishes port 8080 on the host, and `/authorize` is served there.
 
 If port 8080 is already taken on your Home Assistant host, change the add-on's port mapping in the
 add-on's **Network** panel, and register the new port's `/callback` with Polar instead.
@@ -62,8 +76,8 @@ One line is logged whenever the connector's status changes:
 healthy=True authorization=ok authorizeUrl=None backlog=42 lastSuccessfulSync=... nextRunAt=... backoffSeconds=0 lastError=None
 ```
 
-- `authorization=required` means nobody has authorized yet: open the Web UI. `authorizeUrl` is the
-  URL to use, and it is `None` once authorized.
+- `authorization=required` means nobody has authorized yet. `authorizeUrl` is the URL to open, and it
+  is `None` once authorized.
 - `authorization=revoked` means Polar refused the stored token. Authorize again; the next cycle picks
   the new token up without a restart.
 - `backlog` is the number of exercises still owed a download.

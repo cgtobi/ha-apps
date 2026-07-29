@@ -26,4 +26,5 @@ Polar's AccessLink API only returns exercises uploaded in the **last 30 days**, 
 uploaded **after** you authorize this connector. Older history cannot be backfilled through the API;
 export it from Polar Flow and drop the files into Dreeve's watch folder by hand.
 
-See [DOCS.md](DOCS.md) for setup, including which redirect URL to register with Polar.
+See [DOCS.md](DOCS.md) for setup, including which redirect URL to register with Polar and how to reach
+the one-time authorization page.

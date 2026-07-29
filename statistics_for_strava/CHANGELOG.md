@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.10
+
+- docs: document Garmin Connect import, which is provided by the separate **Dreeve Garmin Connector** add-on in this repository. It downloads Garmin activities as `.fit` files into this add-on's watch folder, so it needs `import_mode: files` and `expose_share: true` here; `stravaApi` and `files` remain mutually exclusive, so Strava API import cannot run at the same time. No functional change to this add-on.
+
 ## 0.5.9
 
 - feat: bump Dreeve to v5.1.0 [Changelog](https://docs.dreeve.app/#/changelog)

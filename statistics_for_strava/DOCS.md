@@ -20,6 +20,24 @@ Notes:
 - Imported files are **deleted** from the watch dir after a successful import — this is expected behavior.
 - `expose_share` only controls whether the watch dir is created and symlinked; the underlying mount (`addon_config:rw`) is always granted but scoped to this add-on's own config dir, not all of `/share`.
 
+### Importing from Garmin Connect (`files` mode)
+
+Garmin Connect import is provided by a separate add-on in this repository, **Dreeve Garmin
+Connector**. It downloads your Garmin activities as `.fit` files into this add-on's watch folder,
+which is then imported like any other dropped file.
+
+To use it, configure this add-on with:
+
+- `import_mode: files`
+- `expose_share: true` — this puts the watch folder in the add-on config directory, where the
+  connector add-on can write to it
+
+Because `stravaApi` and `files` are mutually exclusive, Strava API import cannot run at the same time
+as Garmin import.
+
+The connector uses Garmin's unofficial API, which Garmin neither documents nor supports. See the
+connector add-on's own documentation for setup, including accounts with multi-factor authentication.
+
 ## Add-on options
 
 The add-on options are intentionally minimal — they cover only what the app needs at boot. Everything else (appearance, dashboard layout, metrics, gear, gear maintenance, integrations, the import/build schedule, and so on) is configured **inside the app**, in the built-in admin panel at Web UI → `/admin`.

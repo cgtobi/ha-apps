@@ -1,0 +1,4 @@
+image_repo=ghcr.io/dreeveapp/dreeve
+git_url=https://github.com/dreeveapp/dreeve.git
+display_name=Dreeve
+changelog_url=https://docs.dreeve.app/#/changelog

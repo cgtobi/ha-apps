@@ -20,23 +20,28 @@ Notes:
 - Imported files are **deleted** from the watch dir after a successful import — this is expected behavior.
 - `expose_share` only controls whether the watch dir is created and symlinked; the underlying mount (`addon_config:rw`) is always granted but scoped to this add-on's own config dir, not all of `/share`.
 
-### Importing from Garmin Connect (`files` mode)
+### Importing from Garmin Connect or Polar Flow (`files` mode)
 
-Garmin Connect import is provided by a separate add-on in this repository, **Dreeve Garmin
-Connector**. It downloads your Garmin activities as `.fit` files into this add-on's watch folder,
-which is then imported like any other dropped file.
+Provider import is provided by separate connector add-ons in this repository, **Dreeve Garmin
+Connector** and **Dreeve Polar Connector**. Each downloads your activities as files into this add-on's
+watch folder, which are then imported like any other dropped file.
 
-To use it, configure this add-on with:
+To use either, configure this add-on with:
 
 - `import_mode: files`
 - `expose_share: true` — this puts the watch folder in the add-on config directory, where the
-  connector add-on can write to it
+  connector add-ons can write to it
 
 Because `stravaApi` and `files` are mutually exclusive, Strava API import cannot run at the same time
-as Garmin import.
+as connector import. Several connectors can run alongside each other, since they all deliver into the
+same watch folder.
 
-The connector uses Garmin's unofficial API, which Garmin neither documents nor supports. See the
-connector add-on's own documentation for setup, including accounts with multi-factor authentication.
+See each connector add-on's own documentation for setup:
+
+- **Garmin**: uses Garmin's unofficial API, which Garmin neither documents nor supports. Setup covers
+  accounts with multi-factor authentication.
+- **Polar**: uses Polar's official AccessLink API, which needs a free API client of your own and a
+  one-time authorization in the browser. Polar only serves the last 30 days of exercises.
 
 ## Add-on options
 

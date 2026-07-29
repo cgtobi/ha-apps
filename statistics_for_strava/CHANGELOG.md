@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.12
+
+- feat: bump Dreeve to v5.1.1 [Changelog](https://docs.dreeve.app/#/changelog)
+
+## 0.5.11
+
+- docs: document Polar Flow import, which is provided by the separate **Dreeve Polar Connector** add-on in this repository. The import-from-a-provider section now covers both connectors: each needs `import_mode: files` and `expose_share: true` here, and several connectors may run side by side because they all deliver into the same watch folder. No functional change to this add-on.
+
 ## 0.5.10
 
 - docs: document Garmin Connect import, which is provided by the separate **Dreeve Garmin Connector** add-on in this repository. It downloads Garmin activities as `.fit` files into this add-on's watch folder, so it needs `import_mode: files` and `expose_share: true` here; `stravaApi` and `files` remain mutually exclusive, so Strava API import cannot run at the same time. No functional change to this add-on.

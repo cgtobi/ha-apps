@@ -1,0 +1,37 @@
+configuration:
+  polar_client_id:
+    name: Polar client ID
+    description: >-
+      From the client you created at admin.polaraccesslink.com.
+  polar_client_secret:
+    name: Polar client secret
+    description: >-
+      From the same client. Needed to authorize; you may clear it afterwards.
+  public_url:
+    name: Public URL
+    description: >-
+      Where this add-on is reachable in a browser, for example http://homeassistant.local:8080. Its
+      /callback must be registered as a redirect URL with your Polar client. Leave empty only if the
+      client has exactly one registered redirect URL.
+  since:
+    name: Import history from
+    description: >-
+      How far back the first run reaches: a date (2026-07-01), an offset (-30d, 720h) or now. Polar
+      keeps 30 days. Ignored after the first run.
+  tz:
+    name: Timezone
+    description: Timezone used for log timestamps and date comparisons.
+  watch_dir:
+    name: Watch folder
+    description: >-
+      Leave empty to auto-detect the Dreeve add-on's watch folder. Set it only if auto-detection
+      finds more than one candidate.
+  log_level:
+    name: Log level
+    description: How much the connector writes to the add-on log.
+  extra_env:
+    name: Extra settings
+    description: >-
+      Additional connector settings as KEY=VALUE, for example SPORTS=running,cycling or
+      POLL_INTERVAL=1800. POLAR_TOKENS, STATE_DIR, WATCH_DIR and HTTP_ADDR are managed by the add-on
+      and cannot be set here.

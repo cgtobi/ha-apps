@@ -1,0 +1,4 @@
+image_repo=ghcr.io/cgtobi/dreeve-polar-connector
+git_url=https://github.com/cgtobi/dreeve-polar-connector.git
+display_name=Polar connector
+changelog_url=https://github.com/cgtobi/dreeve-polar-connector/releases

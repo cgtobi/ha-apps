@@ -1,0 +1,35 @@
+configuration:
+  garmin_email:
+    name: Garmin-E-Mail
+    description: Die E-Mail-Adresse deines Garmin-Connect-Kontos.
+  garmin_password:
+    name: Garmin-Passwort
+    description: >-
+      Nur nötig, bis eine Sitzung besteht. Nach erfolgreicher Anmeldung kann es geleert werden.
+  mfa_code:
+    name: Zwei-Faktor-Code
+    description: >-
+      Der von Garmin per E-Mail geschickte Code. Eintragen und Add-on neu starten, um die Anmeldung
+      abzuschließen.
+  since:
+    name: Verlauf importieren ab
+    description: >-
+      Wie weit der erste Durchlauf zurückreicht: ein Datum (2026-01-01), ein Abstand (-30d, 720h)
+      oder now. Danach ohne Wirkung.
+  tz:
+    name: Zeitzone
+    description: Zeitzone für Log-Zeitstempel und Datumsvergleiche.
+  watch_dir:
+    name: Überwachungsordner
+    description: >-
+      Leer lassen, um den Überwachungsordner des Dreeve-Add-ons automatisch zu finden. Nur setzen,
+      wenn dabei mehrere Kandidaten gefunden werden.
+  log_level:
+    name: Protokollstufe
+    description: Wie viel der Connector ins Add-on-Log schreibt.
+  extra_env:
+    name: Zusätzliche Einstellungen
+    description: >-
+      Weitere Connector-Einstellungen als KEY=VALUE, zum Beispiel POLL_INTERVAL=7200. GARMINTOKENS,
+      STATE_DIR, WATCH_DIR und HTTP_ADDR verwaltet das Add-on selbst und kann hier nicht gesetzt
+      werden.

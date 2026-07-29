@@ -2,8 +2,6 @@
 set -eu
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-CONFIG_FILE="statistics_for_strava/config.yaml"
-CHANGELOG_FILE="statistics_for_strava/CHANGELOG.md"
 
 mode="working"
 require_bump="0"
@@ -20,6 +18,15 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+# Every directory holding a config.yaml is an add-on. Discovered rather than listed, so a new
+# connector add-on needs no change here.
+addon_dirs() {
+  for candidate in "${ROOT_DIR}"/*/config.yaml; do
+    [ -f "$candidate" ] || continue
+    basename "$(dirname "$candidate")"
+  done
+}
 
 extract_config_version() {
   sed -n 's/^version:[[:space:]]*"\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -n1
@@ -58,33 +65,40 @@ semver_gt() {
 }
 
 if [ "$mode" = "working" ]; then
-  if [ ! -f "${ROOT_DIR}/${CONFIG_FILE}" ] || [ ! -f "${ROOT_DIR}/${CHANGELOG_FILE}" ]; then
-    echo "ERROR: missing ${CONFIG_FILE} or ${CHANGELOG_FILE}" >&2
-    exit 1
-  fi
+  fail=0
+  for addon in $(addon_dirs); do
+    config_file="${addon}/config.yaml"
+    changelog_file="${addon}/CHANGELOG.md"
 
-  config_version="$(extract_config_version < "${ROOT_DIR}/${CONFIG_FILE}")"
-  if [ -z "$config_version" ]; then
-    echo "ERROR: could not parse add-on version from ${CONFIG_FILE}" >&2
-    exit 1
-  fi
+    if [ ! -f "${ROOT_DIR}/${config_file}" ] || [ ! -f "${ROOT_DIR}/${changelog_file}" ]; then
+      echo "ERROR: ${addon}: missing config.yaml or CHANGELOG.md" >&2
+      fail=1
+      continue
+    fi
 
-  changelog_version="$(extract_top_changelog_version < "${ROOT_DIR}/${CHANGELOG_FILE}")"
-  if [ -z "$changelog_version" ]; then
-    echo "ERROR: could not parse top release version from ${CHANGELOG_FILE}" >&2
-    exit 1
-  fi
+    config_version="$(extract_config_version < "${ROOT_DIR}/${config_file}")"
+    changelog_version="$(extract_top_changelog_version < "${ROOT_DIR}/${changelog_file}")"
 
-  if [ "$config_version" != "$changelog_version" ]; then
-    echo "ERROR: version mismatch detected" >&2
-    echo "  ${CONFIG_FILE}:   ${config_version}" >&2
-    echo "  ${CHANGELOG_FILE}: ${changelog_version}" >&2
-    exit 1
-  fi
+    if [ -z "$config_version" ] || [ -z "$changelog_version" ]; then
+      echo "ERROR: ${addon}: could not parse versions" >&2
+      fail=1
+      continue
+    fi
 
-  if [ "$quiet" != "1" ]; then
-    echo "OK: release version is consistent (${config_version})"
-  fi
+    if [ "$config_version" != "$changelog_version" ]; then
+      echo "ERROR: ${addon}: version mismatch" >&2
+      echo "  ${config_file}:   ${config_version}" >&2
+      echo "  ${changelog_file}: ${changelog_version}" >&2
+      fail=1
+      continue
+    fi
+
+    if [ "$quiet" != "1" ]; then
+      echo "OK: ${addon}: release version is consistent (${config_version})"
+    fi
+  done
+
+  [ "$fail" -eq 0 ] || exit 1
   exit 0
 fi
 
@@ -93,35 +107,45 @@ if ! git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   exit 1
 fi
 
-staged_config_version="$(git -C "$ROOT_DIR" show ":${CONFIG_FILE}" 2>/dev/null | extract_config_version || true)"
-if [ -z "$staged_config_version" ]; then
-  echo "ERROR: could not read staged add-on version from ${CONFIG_FILE}" >&2
-  exit 1
-fi
+fail=0
+for addon in $(addon_dirs); do
+  config_file="${addon}/config.yaml"
+  changelog_file="${addon}/CHANGELOG.md"
 
-staged_changelog_version="$(git -C "$ROOT_DIR" show ":${CHANGELOG_FILE}" 2>/dev/null | extract_top_changelog_version || true)"
-if [ -z "$staged_changelog_version" ]; then
-  echo "ERROR: could not read staged top release version from ${CHANGELOG_FILE}" >&2
-  exit 1
-fi
+  staged_in_addon="$(git -C "$ROOT_DIR" diff --cached --name-only --diff-filter=ACMRD -- "$addon" || true)"
+  [ -n "$staged_in_addon" ] || continue
 
-if [ "$staged_config_version" != "$staged_changelog_version" ]; then
-  echo "ERROR: staged version mismatch detected" >&2
-  echo "  ${CONFIG_FILE}:   ${staged_config_version}" >&2
-  echo "  ${CHANGELOG_FILE}: ${staged_changelog_version}" >&2
-  exit 1
-fi
+  staged_config_version="$(git -C "$ROOT_DIR" show ":${config_file}" 2>/dev/null | extract_config_version || true)"
+  staged_changelog_version="$(git -C "$ROOT_DIR" show ":${changelog_file}" 2>/dev/null | extract_top_changelog_version || true)"
 
-if [ "$require_bump" = "1" ]; then
-  head_config_version="$(git -C "$ROOT_DIR" show "HEAD:${CONFIG_FILE}" 2>/dev/null | extract_config_version || true)"
-  if [ -n "$head_config_version" ] && ! semver_gt "$staged_config_version" "$head_config_version"; then
-    echo "ERROR: ${CONFIG_FILE} version must be greater than HEAD" >&2
-    echo "  staged: ${staged_config_version}" >&2
-    echo "  head:   ${head_config_version}" >&2
-    exit 1
+  if [ -z "$staged_config_version" ] || [ -z "$staged_changelog_version" ]; then
+    echo "ERROR: ${addon}: could not read staged versions" >&2
+    fail=1
+    continue
   fi
-fi
 
-if [ "$quiet" != "1" ]; then
-  echo "OK: staged release version is consistent (${staged_config_version})"
-fi
+  if [ "$staged_config_version" != "$staged_changelog_version" ]; then
+    echo "ERROR: ${addon}: staged version mismatch" >&2
+    echo "  ${config_file}:   ${staged_config_version}" >&2
+    echo "  ${changelog_file}: ${staged_changelog_version}" >&2
+    fail=1
+    continue
+  fi
+
+  if [ "$require_bump" = "1" ]; then
+    head_config_version="$(git -C "$ROOT_DIR" show "HEAD:${config_file}" 2>/dev/null | extract_config_version || true)"
+    if [ -n "$head_config_version" ] && ! semver_gt "$staged_config_version" "$head_config_version"; then
+      echo "ERROR: ${addon}: ${config_file} version must be greater than HEAD" >&2
+      echo "  staged: ${staged_config_version}" >&2
+      echo "  head:   ${head_config_version}" >&2
+      fail=1
+      continue
+    fi
+  fi
+
+  if [ "$quiet" != "1" ]; then
+    echo "OK: ${addon}: staged release version is consistent (${staged_config_version})"
+  fi
+done
+
+[ "$fail" -eq 0 ] || exit 1

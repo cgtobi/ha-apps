@@ -1,0 +1,31 @@
+configuration:
+  garmin_email:
+    name: Garmin email
+    description: The email address of your Garmin Connect account.
+  garmin_password:
+    name: Garmin password
+    description: Only needed until a session exists. You may clear it after a successful login.
+  mfa_code:
+    name: Multi-factor code
+    description: The code Garmin emailed you. Enter it and restart the add-on to finish logging in.
+  since:
+    name: Import history from
+    description: >-
+      How far back the first run reaches: a date (2026-01-01), an offset (-30d, 720h) or now.
+      Ignored after the first run.
+  tz:
+    name: Timezone
+    description: Timezone used for log timestamps and date comparisons.
+  watch_dir:
+    name: Watch folder
+    description: >-
+      Leave empty to auto-detect the Dreeve add-on's watch folder. Set it only if auto-detection
+      finds more than one candidate.
+  log_level:
+    name: Log level
+    description: How much the connector writes to the add-on log.
+  extra_env:
+    name: Extra settings
+    description: >-
+      Additional connector settings as KEY=VALUE, for example POLL_INTERVAL=7200. GARMINTOKENS,
+      STATE_DIR, WATCH_DIR and HTTP_ADDR are managed by the add-on and cannot be set here.

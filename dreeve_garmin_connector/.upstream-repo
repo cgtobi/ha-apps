@@ -1,0 +1,4 @@
+image_repo=ghcr.io/dreeveapp/dreeve-garmin-connector
+git_url=https://github.com/dreeveapp/dreeve-garmin-connector.git
+display_name=Garmin connector
+changelog_url=https://github.com/dreeveapp/dreeve-garmin-connector/releases

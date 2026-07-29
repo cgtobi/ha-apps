@@ -1,16 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
-CONFIG_FILE="statistics_for_strava/config.yaml"
-CHANGELOG_FILE="statistics_for_strava/CHANGELOG.md"
-ADDON_DIR="statistics_for_strava"
 CHECK_SCRIPT="scripts/check-release-consistency.sh"
 
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
-  exit 0
-fi
-
-if [ ! -f "$CONFIG_FILE" ] || [ ! -f "$CHANGELOG_FILE" ]; then
   exit 0
 fi
 
@@ -19,17 +12,21 @@ if [ ! -x "$CHECK_SCRIPT" ]; then
   exit 1
 fi
 
-staged_any_in_addon="$(git diff --cached --name-only --diff-filter=ACMRD -- "${ADDON_DIR}/**" "${ADDON_DIR}/*" || true)"
-if [ -z "$staged_any_in_addon" ]; then
-  exit 0
-fi
+for config_path in */config.yaml; do
+  [ -f "$config_path" ] || continue
+  addon="$(dirname "$config_path")"
+  changelog_path="${addon}/CHANGELOG.md"
 
-staged_config_changed="$(git diff --cached --name-only --diff-filter=ACMRD -- "$CONFIG_FILE" || true)"
-staged_changelog_changed="$(git diff --cached --name-only --diff-filter=ACMRD -- "$CHANGELOG_FILE" || true)"
+  staged_in_addon="$(git diff --cached --name-only --diff-filter=ACMRD -- "$addon" || true)"
+  [ -n "$staged_in_addon" ] || continue
 
-if [ -z "$staged_config_changed" ] || [ -z "$staged_changelog_changed" ]; then
-  echo "pre-commit: Version change and changelog update are required" >&2
-  exit 1
-fi
+  staged_config="$(git diff --cached --name-only --diff-filter=ACMRD -- "$config_path" || true)"
+  staged_changelog="$(git diff --cached --name-only --diff-filter=ACMRD -- "$changelog_path" || true)"
 
-"$CHECK_SCRIPT" --staged --require-bump
+  if [ -z "$staged_config" ] || [ -z "$staged_changelog" ]; then
+    echo "pre-commit: ${addon} changed; stage a version bump in ${config_path} and ${changelog_path}" >&2
+    exit 1
+  fi
+done
+
+exec "$CHECK_SCRIPT" --staged --require-bump

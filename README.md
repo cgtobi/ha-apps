@@ -6,9 +6,9 @@ This repository contains Home Assistant add-ons.
 
 ## Add-ons
 
-This repository contains the following add-on.
+This repository contains the following add-ons.
 
-### [Dreeve](./addon/statistics_for_strava)
+### [Dreeve](./statistics_for_strava)
 
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
@@ -24,6 +24,20 @@ The Dreeve add-on uses the official upstream GHCR image as its base image. To te
 ```sh
 docker build -t dreeve-local ./statistics_for_strava
 docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve:v5.0.0 -t dreeve-local ./statistics_for_strava
+```
+
+### [Dreeve Garmin Connector](./dreeve_garmin_connector)
+
+![Supports aarch64 Architecture][aarch64-shield]
+![Supports amd64 Architecture][amd64-shield]
+
+_Imports Garmin Connect activities into Dreeve. Requires the Dreeve add-on with `import_mode: files` and `expose_share: true`._
+
+The Dreeve Garmin Connector add-on uses the official upstream GHCR image as its base image. To test the local build directly:
+
+```sh
+docker build -t dreeve-garmin-connector-local ./dreeve_garmin_connector
+docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve-garmin-connector:v1.0.0 -t dreeve-garmin-connector-local ./dreeve_garmin_connector
 ```
 
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg

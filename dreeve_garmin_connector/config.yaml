@@ -1,0 +1,45 @@
+name: "Dreeve Garmin Connector"
+version: "0.1.0"
+slug: "dreeve_garmin_connector"
+description: "Imports Garmin Connect activities into Dreeve"
+url: "https://github.com/dreeveapp/dreeve-garmin-connector"
+stage: experimental
+arch:
+  - amd64
+  - aarch64
+startup: services
+boot: auto
+init: false
+homeassistant: "2025.1.0"
+changelog: true
+
+# Liveness only: the status server listens exactly while the sync process is alive. Deliberately not
+# an HTTP check against the connector's /healthz, which also reports unhealthy on broken Garmin
+# authentication and on missed cycles - neither of which a restart repairs.
+watchdog: "tcp://[HOST]:[PORT:8080]"
+
+# Write access to every add-on's config dir, so this add-on can deliver into the Dreeve add-on's
+# watch folder (which lives there when the Dreeve add-on has expose_share enabled).
+map:
+  - all_addon_configs:rw
+
+options:
+  garmin_email: ""
+  garmin_password: ""
+  mfa_code: ""
+  since: "-30d"
+  tz: "Etc/GMT"
+  watch_dir: ""
+  log_level: "info"
+  extra_env: []
+
+schema:
+  garmin_email: str
+  garmin_password: password?
+  mfa_code: str?
+  since: str?
+  tz: str
+  watch_dir: str?
+  log_level: "list(debug|info|warning|error|critical)"
+  extra_env:
+    - str

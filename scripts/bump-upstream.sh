@@ -2,25 +2,49 @@
 set -eu
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-ADDON_DIR="${ROOT_DIR}/statistics_for_strava"
-VERSION_FILE="${ADDON_DIR}/.upstream-version"
-DOCKERFILE="${ADDON_DIR}/Dockerfile"
-CONFIG_YAML="${ADDON_DIR}/config.yaml"
-CHANGELOG="${ADDON_DIR}/CHANGELOG.md"
-IMAGE_REPO="ghcr.io/dreeveapp/dreeve"
-UPSTREAM_GIT_URL="https://github.com/dreeveapp/dreeve.git"
+DEFAULT_ADDON="statistics_for_strava"
 CHECK_SCRIPT="${ROOT_DIR}/scripts/check-release-consistency.sh"
+
+read_repo_field() {
+  field="$1"
+  sed -n "s/^${field}=//p" "$REPO_FILE" | head -n1
+}
+
+# Resolves every per-add-on path and upstream fact from the add-on name, so nothing about a third
+# add-on needs a code change here. Must run before any bump/check helper.
+select_addon() {
+  ADDON="${1:-$DEFAULT_ADDON}"
+  ADDON_DIR="${ROOT_DIR}/${ADDON}"
+  if [ ! -f "${ADDON_DIR}/config.yaml" ]; then
+    echo "ERROR: unknown add-on '${ADDON}'" >&2
+    exit 1
+  fi
+  VERSION_FILE="${ADDON_DIR}/.upstream-version"
+  DOCKERFILE="${ADDON_DIR}/Dockerfile"
+  CONFIG_YAML="${ADDON_DIR}/config.yaml"
+  CHANGELOG="${ADDON_DIR}/CHANGELOG.md"
+  REPO_FILE="${ADDON_DIR}/.upstream-repo"
+  if [ ! -f "$REPO_FILE" ]; then
+    echo "ERROR: missing ${REPO_FILE}" >&2
+    exit 1
+  fi
+  IMAGE_REPO="$(read_repo_field image_repo)"
+  UPSTREAM_GIT_URL="$(read_repo_field git_url)"
+  DISPLAY_NAME="$(read_repo_field display_name)"
+  CHANGELOG_URL="$(read_repo_field changelog_url)"
+}
 
 usage() {
   echo "Usage:"
-  echo "  $0 bump [upstream-version-tag]"
-  echo "  $0 check"
-  echo "  $0"
+  echo "  $0 bump [addon] [upstream-version-tag]"
+  echo "  $0 check [addon]"
+  echo "  $0 [addon]"
   echo "Examples:"
-  echo "  $0 bump v4.7.5"
-  echo "  $0 bump"
-  echo "  $0 check"
+  echo "  $0 bump statistics_for_strava v5.1.0"
+  echo "  $0 bump dreeve_garmin_connector"
+  echo "  $0 check dreeve_garmin_connector"
   echo "  $0"
+  echo "The add-on defaults to ${DEFAULT_ADDON}."
 }
 
 get_config_version() {
@@ -65,11 +89,12 @@ prepend_changelog_release() {
   addon_version="$1"
   upstream_version="$2"
   tmp_changelog="$(mktemp)"
-  awk -v addon_version="$addon_version" -v upstream_version="$upstream_version" '
+  awk -v addon_version="$addon_version" -v upstream_version="$upstream_version" \
+      -v display_name="$DISPLAY_NAME" -v changelog_url="$CHANGELOG_URL" '
     BEGIN {
       inserted = 0
       skip_first_blank_after_header = 0
-      new_line = "- feat: bump Dreeve to " upstream_version " [Changelog](https://docs.dreeve.app/#/changelog)"
+      new_line = "- feat: bump " display_name " to " upstream_version " [Changelog](" changelog_url ")"
     }
     /^# Changelog[[:space:]]*$/ && !inserted {
       print
@@ -117,7 +142,7 @@ check_sync() {
 
   docker_value="$(sed -n 's/^ARG BUILD_FROM=//p' "$DOCKERFILE")"
   if [ "$docker_value" != "$expected" ]; then
-    echo "Mismatch: Dockerfile has '${docker_value}', expected '${expected}'" >&2
+    echo "Mismatch: ${ADDON}: Dockerfile has '${docker_value}', expected '${expected}'" >&2
     fail=1
   fi
 
@@ -128,24 +153,13 @@ check_sync() {
     fail=1
   fi
 
-  latest_bump_line="$(awk '
-    BEGIN { in_latest = 0 }
-    /^## / {
-      if (!in_latest) {
-        in_latest = 1
-        next
-      }
-      in_latest = 0
-    }
-    in_latest && /^- feat: bump Dreeve to v[0-9]/ {
-      print
-      exit
-    }
-  ' "$CHANGELOG")"
-
-  expected_line="- feat: bump Dreeve to ${version} [Changelog](https://docs.dreeve.app/#/changelog)"
-  if [ "$latest_bump_line" != "$expected_line" ]; then
-    echo "Mismatch: latest changelog bump line is '${latest_bump_line}', expected '${expected_line}'" >&2
+  # The pinned tag must be recorded somewhere in the changelog - not necessarily in the newest
+  # release. Add-on releases that carry only fixes or documentation are normal (see 0.5.5, 0.5.8), and
+  # requiring the newest section to hold a bump line would fail on every one of them.
+  expected_line="- feat: bump ${DISPLAY_NAME} to ${version} [Changelog](${CHANGELOG_URL})"
+  # -e, because the expected line starts with '-' and BSD grep would read it as an option.
+  if ! grep -Fqx -e "$expected_line" "$CHANGELOG"; then
+    echo "Mismatch: ${ADDON}: no changelog entry for the pinned upstream version; expected a line '${expected_line}'" >&2
     fail=1
   fi
 
@@ -153,12 +167,12 @@ check_sync() {
     exit 1
   fi
 
-  echo "OK: upstream version is synchronized (${version})"
+  echo "OK: ${ADDON}: upstream version is synchronized (${version})"
 }
 
 print_commit_message() {
   version="$1"
-  printf '\nfeat: bump upstream to %s\n' "$version"
+  printf '\nfeat: bump %s upstream to %s\n' "$ADDON" "$version"
 }
 
 append_changed_file() {
@@ -288,34 +302,61 @@ fetch_latest_upstream_version() {
   echo "v${latest}"
 }
 
-if [ "${1:-}" = "" ]; then
-  resolved_version="$(fetch_latest_upstream_version)"
-  echo "Resolved upstream version (git tags): ${resolved_version}"
-  run_bump "$resolved_version"
-  check_sync
-  if [ "${LAST_BUMP_CHANGED:-0}" = "1" ]; then
-    print_commit_message "$resolved_version"
-  fi
-  exit 0
+MODE="${1:-}"
+
+case "$MODE" in
+  check)
+    select_addon "${2:-}"
+    check_sync
+    exit 0
+    ;;
+  bump)
+    ;;
+  *)
+    # No mode given: resolve the latest upstream tag and bump. The single argument, if any, is an
+    # add-on name ("$0 dreeve_garmin_connector"); anything else is a typo.
+    if [ -n "$MODE" ] && [ ! -f "${ROOT_DIR}/${MODE}/config.yaml" ]; then
+      usage
+      exit 1
+    fi
+    select_addon "$MODE"
+    resolved_version="$(fetch_latest_upstream_version)"
+    echo "Resolved upstream version (git tags): ${resolved_version}"
+    run_bump "$resolved_version"
+    check_sync
+    if [ "${LAST_BUMP_CHANGED:-0}" = "1" ]; then
+      print_commit_message "$resolved_version"
+    fi
+    exit 0
+    ;;
+esac
+
+# bump [addon] [tag]: the add-on argument is optional, so decide by whether it names a directory.
+if [ -n "${2:-}" ] && [ -f "${ROOT_DIR}/${2}/config.yaml" ]; then
+  select_addon "$2"
+  TAG="${3:-}"
+else
+  select_addon
+  TAG="${2:-}"
 fi
 
-MODE="$1"
-
-if [ "$MODE" = "check" ]; then
-  check_sync
-  exit 0
+# A leftover argument that is neither an add-on name nor a version tag is a typo: refuse it instead
+# of pinning the default add-on to a nonsense image reference.
+if [ -n "$TAG" ]; then
+  case "$TAG" in
+    v[0-9]*.[0-9]*.[0-9]*|[0-9]*.[0-9]*.[0-9]*) ;;
+    *)
+      echo "ERROR: '${TAG}' is neither a known add-on nor a version tag (vX.Y.Z)" >&2
+      exit 1
+      ;;
+  esac
 fi
 
-if [ "$MODE" != "bump" ]; then
-  usage
-  exit 1
-fi
-
-if [ "${2:-}" = "" ]; then
+if [ -z "$TAG" ]; then
   VERSION="$(fetch_latest_upstream_version)"
   echo "Resolved upstream version (git tags): ${VERSION}"
 else
-  VERSION="$(normalize_version "$2")"
+  VERSION="$(normalize_version "$TAG")"
   echo "Resolved upstream version (explicit): ${VERSION}"
 fi
 

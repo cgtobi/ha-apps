@@ -1,5 +1,5 @@
 name: "Dreeve Garmin Connector"
-version: "0.1.0"
+version: "0.1.1"
 slug: "dreeve_garmin_connector"
 description: "Imports Garmin Connect activities into Dreeve"
 url: "https://github.com/dreeveapp/dreeve-garmin-connector"

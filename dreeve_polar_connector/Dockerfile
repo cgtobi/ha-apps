@@ -21,12 +21,22 @@ COPY rootfs /
 
 RUN chmod +x /usr/local/bin/ha-start.sh
 
-# The upstream image's HEALTHCHECK runs `dreeve-polar-connector healthcheck`, which reports unhealthy
-# until someone has completed the Polar authorization - by design upstream, and not something a
-# restart can repair. It would also never see the variables ha-start.sh exports after sourcing its
-# env file, since a HEALTHCHECK process only gets the image's static env. Home Assistant does not
-# consult Docker's health status anyway: liveness is the TCP watchdog declared in config.yaml.
-HEALTHCHECK NONE
+# Liveness only, replacing the upstream HEALTHCHECK rather than disabling it.
+#
+# Upstream's runs `dreeve-polar-connector healthcheck`, which reports unhealthy until someone has
+# completed the Polar authorization - by design upstream, and not something a restart repairs - and
+# which only ever sees the image's static env, never what ha-start.sh exports after sourcing its env
+# file.
+#
+# `HEALTHCHECK NONE` is not the answer: it writes Test:["NONE"] into the image config, so Supervisor
+# still sees *a* healthcheck and holds the app in state STARTUP waiting for a health verdict Docker
+# will never emit for a disabled check - every start then burns the full 120s STARTUP_TIMEOUT.
+#
+# A TCP connect to the status port is the same signal as the watchdog in config.yaml: healthy exactly
+# while the sync process is alive, indifferent to authorization. The port is hardcoded because
+# HTTP_ADDR is add-on-owned (see dreeve_ha/env.py) and a HEALTHCHECK cannot read it anyway.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["/opt/venv/bin/python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8080), 3).close()"]
 
 # Replaces the upstream entrypoint, which ha-start.sh execs itself once the environment is ready.
 ENTRYPOINT ["/usr/local/bin/ha-start.sh"]

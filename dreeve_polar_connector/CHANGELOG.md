@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.1.5
+
+- fix: ship a liveness healthcheck for connectors
+
 ## 0.1.4
 
-- docs: warn that the authorization flow starts at `/authorize` and never at `/callback` — opening the latter by hand reports *"The state parameter is missing, unknown or expired"*, which is correct behaviour, not a fault. Also spell out that remapping the host port means updating the `public_url` option **and** the redirect URL registered with Polar, which rejects any redirect URI it does not know verbatim.
+- docs: warn that the authorization flow starts at `/authorize` and never at `/callback` — opening the latter by hand reports _"The state parameter is missing, unknown or expired"_, which is correct behaviour, not a fault. Also spell out that remapping the host port means updating the `public_url` option **and** the redirect URL registered with Polar, which rejects any redirect URI it does not know verbatim.
 
 ## 0.1.3
 

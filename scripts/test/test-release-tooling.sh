@@ -57,14 +57,18 @@ else
 fi
 
 # 4. Bumping the connector to a new tag updates exactly its own four files.
-(cd "$REPO" && ./scripts/bump-upstream.sh bump dreeve_garmin_connector v9.9.9 >/dev/null)
 addon="${REPO}/dreeve_garmin_connector"
+# Derived, not hardcoded: every release of that add-on would otherwise break this assertion.
+before_version="$(sed -n 's/^version: "\([0-9.]*\)".*/\1/p' "${addon}/config.yaml" | head -n1)"
+expected_version="$(printf '%s\n' "$before_version" | awk -F. '{printf "%s.%s.%d", $1, $2, $3 + 1}')"
+(cd "$REPO" && ./scripts/bump-upstream.sh bump dreeve_garmin_connector v9.9.9 >/dev/null)
 [ "$(cat "${addon}/.upstream-version")" = "v9.9.9" ] \
   && pass ".upstream-version updated" || fail ".upstream-version not updated"
 grep -q 'ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-garmin-connector:v9.9.9' "${addon}/Dockerfile" \
   && pass "Dockerfile pinned to the new tag" || fail "Dockerfile not repinned"
-grep -q '^version: "0.1.1"' "${addon}/config.yaml" \
-  && pass "add-on version patch-bumped" || fail "add-on version not bumped"
+grep -q "^version: \"${expected_version}\"" "${addon}/config.yaml" \
+  && pass "add-on version patch-bumped (${before_version} -> ${expected_version})" \
+  || fail "add-on version not bumped to ${expected_version}"
 grep -q '^- feat: bump Garmin connector to v9.9.9' "${addon}/CHANGELOG.md" \
   && pass "changelog entry written with the display name" || fail "changelog entry missing"
 if diff -r "${ROOT_DIR}/statistics_for_strava" "${REPO}/statistics_for_strava" >/dev/null 2>&1; then

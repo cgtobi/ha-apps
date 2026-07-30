@@ -19,7 +19,7 @@ providers they use.
 
 | File | Notes |
 |---|---|
-| `Dockerfile` | `ARG BUILD_FROM=<upstream image>:<tag>` carrying its own default — Supervisor stopped providing `BUILD_FROM` automatically in 2026.04.0 — then `FROM ${BUILD_FROM}`; `HEALTHCHECK NONE`; `ENTRYPOINT ["/usr/local/bin/ha-start.sh"]` with `CMD []` |
+| `Dockerfile` | `ARG BUILD_FROM=<upstream image>:<tag>` carrying its own default — Supervisor stopped providing `BUILD_FROM` automatically in 2026.04.0 — then `FROM ${BUILD_FROM}`; a liveness `HEALTHCHECK` replacing upstream's (never `HEALTHCHECK NONE` — see below); `ENTRYPOINT ["/usr/local/bin/ha-start.sh"]` with `CMD []` |
 | `config.yaml` | `map: [all_addon_configs:rw]`, `stage: experimental` while the provider API is unofficial, `watchdog: "tcp://[HOST]:[PORT:8080]"` |
 | `.upstream-version` | The pinned **image** tag, e.g. `v1.0.0` or `0.1.0` — whatever the upstream registry actually serves, which is not always the git tag |
 | `.upstream-repo` | `image_repo`, `git_url`, `display_name`, `changelog_url`, `tag_prefix` — read by `scripts/bump-upstream.sh` |
@@ -78,12 +78,34 @@ unhealthy on broken credentials or on a missing authorization, neither of which 
 TCP check only asks whether the sync process is alive. This mirrors the Dreeve add-on's own
 `healthz.php`, which deliberately ignores import and credential failures.
 
-**Disabled Docker HEALTHCHECK.** The upstream image's own `HEALTHCHECK` shells out to a command that
-reads env vars for its verdict, but a `HEALTHCHECK` process only sees the image's static env — not
-what `ha-start.sh` exports at runtime after sourcing its env file — so it would report unhealthy
-forever regardless of actual state. On an OAuth connector there is a second reason: upstream reports
-unhealthy *by design* until someone authorizes. Both add-ons set `HEALTHCHECK NONE` and rely solely on
-the watchdog above; Home Assistant does not consult Docker's health status anyway.
+**Replaced Docker HEALTHCHECK — never `HEALTHCHECK NONE`.** The upstream images' own checks shell out
+to a command that reads env vars for its verdict, but a `HEALTHCHECK` process only sees the image's
+static env — not what `ha-start.sh` exports at runtime after sourcing its env file — so it reports
+unhealthy forever regardless of actual state. On an OAuth connector there is a second reason: upstream
+reports unhealthy *by design* until someone authorizes.
+
+Disabling it is a trap, and cost two releases here. `HEALTHCHECK NONE` writes `Test:["NONE"]` into the
+image config rather than removing the key, and Supervisor branches on the key's presence:
+
+```python
+AppState.STARTUP if self.instance.healthcheck else AppState.STARTED
+```
+
+An app in `STARTUP` becomes `STARTED` only on a health event, which Docker never emits for a disabled
+check — so every single start waits out the full 120s `STARTUP_TIMEOUT` and logs
+`Timeout while waiting for app ... to start`, while the container itself runs perfectly.
+
+Ship a liveness check instead, mirroring the TCP watchdog — healthy exactly while the sync process
+listens, indifferent to credentials or authorization:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["/opt/venv/bin/python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8080), 3).close()"]
+```
+
+Hardcode the port: it is add-on-owned, and a `HEALTHCHECK` could not read `HTTP_ADDR` anyway. Verify
+both directions before shipping — `docker inspect -f '{{.State.Health.Status}}'` must reach `healthy`
+within seconds of boot, and a container started with `--entrypoint sleep` must reach `unhealthy`.
 
 **Entrypoint takeover, not CMD reliance.** The Dockerfile sets `CMD []` and replaces
 `ENTRYPOINT` with `ha-start.sh`. The script itself ends with `exec docker-entrypoint.sh run` — it

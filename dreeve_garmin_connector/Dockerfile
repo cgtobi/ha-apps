@@ -21,14 +21,22 @@ COPY rootfs /
 
 RUN chmod +x /usr/local/bin/ha-start.sh
 
-# The upstream image's HEALTHCHECK shells out to `dreeve-garmin-connector healthcheck`, but a
-# HEALTHCHECK process only sees the image's static env - not the variables ha-start.sh exports after
-# sourcing /run/dreeve-ha.env - so it reports "GARMIN_EMAIL is required" forever and the container
-# always looks unhealthy in `docker ps`, however well configured it is. Home Assistant does not use
-# Docker's health status anyway: liveness is the TCP watchdog declared in config.yaml, which is also
-# the only signal we want, since the connector's own health turns unhealthy on broken Garmin
-# credentials, and no restart fixes those.
-HEALTHCHECK NONE
+# Liveness only, replacing the upstream HEALTHCHECK rather than disabling it.
+#
+# Upstream's shells out to `dreeve-garmin-connector healthcheck`, but a HEALTHCHECK process only sees
+# the image's static env - not the variables ha-start.sh exports after sourcing /run/dreeve-ha.env -
+# so it reports "GARMIN_EMAIL is required" forever, however well configured the add-on is. Its verdict
+# also turns unhealthy on broken Garmin credentials, which no restart fixes.
+#
+# `HEALTHCHECK NONE` is not the answer: it writes Test:["NONE"] into the image config, so Supervisor
+# still sees *a* healthcheck and holds the app in state STARTUP waiting for a health verdict Docker
+# will never emit for a disabled check - every start then burns the full 120s STARTUP_TIMEOUT.
+#
+# A TCP connect to the status port is the same signal as the watchdog in config.yaml: healthy exactly
+# while the sync process is alive, indifferent to credentials. The port is hardcoded because
+# HTTP_ADDR is add-on-owned (see dreeve_ha/env.py) and a HEALTHCHECK cannot read it anyway.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["/opt/venv/bin/python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8080), 3).close()"]
 
 # Replaces the upstream entrypoint, which ha-start.sh execs itself once the environment is ready.
 ENTRYPOINT ["/usr/local/bin/ha-start.sh"]

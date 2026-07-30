@@ -84,6 +84,15 @@ class RunTest(unittest.TestCase):
 
         self.assertFalse(any("public_url" in message for message in self.logged))
 
+    def test_stays_quiet_when_only_the_redirect_uri_is_set(self):
+        # That option names the redirect URL outright, so the fallback the note warns about - Polar
+        # picking the client's single registered URL - cannot apply.
+        self.write_options({"polar_client_id": "abc-123", "redirect_uri": "http://ha.local:8080"})
+
+        self.run_prepare()
+
+        self.assertFalse(any("NOTE:" in message for message in self.logged))
+
     def test_fails_when_the_watch_dir_cannot_be_resolved(self):
         self.write_options({"polar_client_id": "abc-123"})
         for path in self.addon_configs.glob("*/watch"):

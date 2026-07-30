@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.11
+
+- fix: respect log level configuration
+- fix: don't advise setting `public_url` when `redirect_uri` is set
+
 ## 0.1.10
 
 - feat: bump Polar connector to 0.1.3 [Changelog](https://github.com/dreeveapp/dreeve-polar-connector/releases)

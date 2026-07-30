@@ -33,13 +33,16 @@ def run(
     for warning in warnings:
         log("WARN: {0}".format(warning))
 
-    if not addon_options["public_url"]:
-        # Not fatal: with no PUBLIC_URL the connector sends no redirect_uri and Polar falls back to
-        # the client's single registered URL. With several registered, Polar rejects the request.
+    if not addon_options["public_url"] and not addon_options["redirect_uri"]:
+        # Not fatal: with neither set the connector sends no redirect_uri at all and Polar falls back
+        # to the client's single registered URL. With several registered, Polar rejects the request.
+        # Silent when 'redirect_uri' is set, because that names the URL outright and no fallback
+        # applies.
         log(
-            "NOTE: 'public_url' is empty, so authorization relies on your Polar client having "
-            "exactly one registered redirect URL. If it has several, set 'public_url' to "
-            "http://<home-assistant-host>:8080 and register that host's /callback with Polar."
+            "NOTE: neither 'public_url' nor 'redirect_uri' is set, so authorization relies on your "
+            "Polar client having exactly one registered redirect URL. If it has several, set "
+            "'public_url' to http://<home-assistant-host>:8080, or 'redirect_uri' to whichever URL "
+            "Polar accepts."
         )
 
     for directory in data_dirs:

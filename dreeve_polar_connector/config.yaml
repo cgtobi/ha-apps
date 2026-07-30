@@ -1,5 +1,5 @@
 name: "Dreeve Polar Connector"
-version: "0.1.5"
+version: "0.1.7"
 slug: "dreeve_polar_connector"
 description: "Imports Polar Flow training sessions into Dreeve"
 url: "https://github.com/cgtobi/dreeve-polar-connector"
@@ -36,6 +36,7 @@ options:
   polar_client_id: ""
   polar_client_secret: ""
   public_url: ""
+  redirect_uri: ""
   since: "-30d"
   tz: "Etc/GMT"
   watch_dir: ""
@@ -46,6 +47,7 @@ schema:
   polar_client_id: str
   polar_client_secret: password?
   public_url: str?
+  redirect_uri: str?
   since: str?
   tz: str
   watch_dir: str?

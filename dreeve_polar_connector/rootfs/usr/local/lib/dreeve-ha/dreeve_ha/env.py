@@ -44,6 +44,10 @@ def build(addon_options, watch_dir):
     for option_key, variable in (
         ("polar_client_secret", "POLAR_CLIENT_SECRET"),
         ("public_url", "PUBLIC_URL"),
+        # Sent to Polar verbatim, overriding <public_url>/callback. Polar's admin page accepts a path
+        # but its authorization endpoint may then honour only the bare origin, and it compares the
+        # value byte for byte - so this is passed through exactly as typed.
+        ("redirect_uri", "REDIRECT_URI"),
         ("since", "SINCE"),
         ("tz", "TZ"),
     ):

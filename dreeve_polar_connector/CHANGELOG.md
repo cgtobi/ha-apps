@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.7
+
+- feat: add a `redirect_uri` option
+
+## 0.1.6
+
+- docs: explain Polar's catch-all page
+
 ## 0.1.5
 
 - fix: ship a liveness healthcheck for connectors

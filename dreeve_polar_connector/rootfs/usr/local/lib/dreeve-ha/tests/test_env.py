@@ -39,6 +39,17 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(built["PUBLIC_URL"], "http://homeassistant.local:8080")
         self.assertEqual(built["SINCE"], "-7d")
 
+    def test_the_redirect_uri_override_is_passed_through_verbatim(self):
+        # Polar compares a redirect URI byte for byte against what is registered, so no tidying here:
+        # a trailing slash this add-on stripped would turn an exact match into a rejected request.
+        built, _ = env.build(
+            make_options(public_url="http://ha.local:8080", redirect_uri="http://ha.local:8080/"),
+            Path("/watch"),
+        )
+
+        self.assertEqual(built["REDIRECT_URI"], "http://ha.local:8080/")
+        self.assertEqual(built["PUBLIC_URL"], "http://ha.local:8080")
+
     def test_the_client_id_is_exported_even_when_unset(self):
         # So the connector reports its own "POLAR_CLIENT_ID is required" message, which names where to
         # create a client, rather than this add-on inventing a second wording for the same problem.
@@ -55,6 +66,7 @@ class BuildTest(unittest.TestCase):
         # to accept alongside an inline secret - so leaving the option empty must keep that route open.
         self.assertNotIn("POLAR_CLIENT_SECRET", built)
         self.assertNotIn("PUBLIC_URL", built)
+        self.assertNotIn("REDIRECT_URI", built)
         self.assertNotIn("SINCE", built)
         self.assertNotIn("TZ", built)
 

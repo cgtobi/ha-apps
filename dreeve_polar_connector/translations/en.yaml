@@ -13,6 +13,13 @@ configuration:
       Where this add-on is reachable in a browser, for example http://homeassistant.local:8080. Its
       /callback must be registered as a redirect URL with your Polar client. Leave empty only if the
       client has exactly one registered redirect URL.
+  redirect_uri:
+    name: Redirect URI
+    description: >-
+      Only needed when Polar refuses the usual <public_url>/callback with "Oops, something went wrong
+      somewhere along the way." Set it to a URL your Polar client actually accepts, often the bare
+      origin such as http://homeassistant.local:8080. Sent to Polar exactly as typed, trailing slash
+      included, and the add-on answers the callback at / as well.
   since:
     name: Import history from
     description: >-

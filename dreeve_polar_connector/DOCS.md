@@ -30,6 +30,53 @@ the redirect URL registered with your Polar client. Polar rejects any redirect U
 registered verbatim, so remapping 8080 to, say, 8180 means registering
 `http://<home-assistant-host>:8180/callback` at Polar as well.
 
+**Polar answers "Oops, something went wrong somewhere along the way."** That page is Polar's catch-all,
+and the usual cause is a `redirect_uri` it does not recognise for your client. Polar's admin page
+accepts a URL with a path, but its authorization endpoint has been observed rejecting that same URL
+while accepting the bare origin — so a registered `http://host:8080/callback` can simply not work.
+
+Polar validates the redirect **before** authentication, so you can test candidate strings from a shell
+without signing in. `303` means Polar accepts that string, `200` means it refuses it:
+
+```sh
+CLIENT_ID=<your client id>
+REDIRECT=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=""))' 'http://homeassistant.local:8080/callback')
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "https://flow.polar.com/oauth2/authorization?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT}"
+```
+
+Try the bare origin too (`http://homeassistant.local:8080`, and with a trailing slash — Polar compares
+byte for byte). Set the `redirect_uri` option to whichever string returns `303`; the add-on serves the
+callback at `/` as well as at `/callback`, so a bare origin completes the flow.
+
+Dropping `redirect_uri` from the request entirely — leave both `public_url` and `redirect_uri` empty —
+is the other way out: Polar then uses the client's only or default registered URL.
+
+If even the two-parameter URL fails —
+`https://flow.polar.com/oauth2/authorization?response_type=code&client_id=<your client id>` — then no
+redirect is involved at all and the `client_id` is wrong, or you are not signed in to Polar Flow in
+that browser.
+
+## Authorizing without a working redirect
+
+If reaching the add-on's port from your browser is awkward, authorize from a terminal instead — the
+redirect never has to arrive anywhere. From the SSH & Web Terminal add-on:
+
+```sh
+docker exec -it addon_<slug>_dreeve_polar_connector \
+  sh -lc '. /run/dreeve-ha.env && exec dreeve-polar-connector login'
+```
+
+It prints a URL; approve it in any browser, then paste the `code=` value from the address bar back
+into the prompt. The token lands in `/data/tokens` and the running connector picks it up on its next
+cycle, without a restart.
+
+The authorization request and the token exchange must agree on `redirect_uri`: this add-on sends it in
+both when `public_url` is set, and in neither when it is empty. Leave `public_url` empty for this route
+unless the registered URL really is reachable. An authorization code is single-use — Polar deletes
+every token issued to the account if one is replayed — so a mismatch costs you a fresh trip through
+`/authorize` rather than just a retry.
+
 The token Polar issues does not expire and lives in the add-on's own data directory, so this is a
 one-time exercise. You may clear `polar_client_secret` afterwards, at the cost of having to set it
 again if you ever re-authorize.
@@ -41,6 +88,7 @@ again if you ever re-authorize.
 | `polar_client_id` | - | **Required.** From your client at admin.polaraccesslink.com. |
 | `polar_client_secret` | - | **Required** to authorize. |
 | `public_url` | - | Where this add-on is reachable in a browser, e.g. `http://homeassistant.local:8080`. Builds the OAuth redirect URL, which must match one registered with your Polar client. |
+| `redirect_uri` | - | Overrides that derived redirect URL, sent to Polar exactly as typed. Only needed when Polar rejects `<public_url>/callback` — see below. |
 | `since` | `-30d` | How far back the **first** run reaches: a date (`2026-07-01`), an offset (`-30d`, `720h`) or `now`. Polar keeps 30 days, so `-30d` is everything there is. Ignored afterwards. |
 | `tz` | `Etc/GMT` | Timezone for log timestamps and date comparisons. |
 | `watch_dir` | - | Leave empty to auto-detect the Dreeve add-on's watch folder. Set it if auto-detection reports several candidates. |

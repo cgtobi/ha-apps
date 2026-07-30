@@ -12,6 +12,7 @@ DEFAULTS = {
     "polar_client_id": "",
     "polar_client_secret": "",
     "public_url": "",
+    "redirect_uri": "",
     "since": "-30d",
     "tz": "",
     "watch_dir": "",

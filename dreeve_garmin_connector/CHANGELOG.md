@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- feat: use the Garmin connector's own logo for the add-on icon
+
 ## 0.1.2
 
 - fix: respect log level configuration

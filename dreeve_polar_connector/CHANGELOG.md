@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.13
+
+- feat: bump Polar connector to 0.1.4 [Changelog](https://github.com/dreeveapp/dreeve-polar-connector/releases)
+
 ## 0.1.12
 
 - feat: use the Polar connector's own logo for the add-on icon

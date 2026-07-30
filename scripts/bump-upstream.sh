@@ -47,10 +47,10 @@ select_addon() {
 usage() {
   echo "Usage:"
   echo "  $0 bump [addon] [upstream-version-tag]"
-  echo "  $0 check [addon]"
-  echo "  $0 [addon]"
+  echo "  $0 check [addon]        (every add-on when no name is given)"
+  echo "  $0 [addon]              (every add-on when no name is given)"
   echo "Examples:"
-  echo "  $0 bump statistics_for_strava v5.1.0"
+  echo "  $0 bump dreeve v5.1.0"
   echo "  $0 bump dreeve_garmin_connector"
   echo "  $0 check dreeve_garmin_connector"
   echo "  $0"
@@ -313,31 +313,62 @@ fetch_latest_upstream_version() {
   echo "${TAG_PREFIX}${latest}"
 }
 
+bump_latest() {
+  select_addon "$1"
+  resolved_version="$(fetch_latest_upstream_version)"
+  echo "${ADDON}: resolved upstream version (git tags): ${resolved_version}"
+  run_bump "$resolved_version"
+  check_sync
+  if [ "${LAST_BUMP_CHANGED:-0}" = "1" ]; then
+    print_commit_message "$resolved_version"
+  fi
+}
+
 MODE="${1:-}"
 
 case "$MODE" in
   check)
-    select_addon "${2:-}"
-    check_sync
+    # No add-on named: check every one of them. A pin that disagrees with .upstream-version is
+    # invisible to check-release-consistency.sh, so a per-add-on default would leave the connectors
+    # unverified - which is how a mismatched Polar pin once reached a commit.
+    if [ -n "${2:-}" ]; then
+      select_addon "$2"
+      check_sync
+      exit 0
+    fi
+    fail=0
+    for config_path in "${ROOT_DIR}"/*/config.yaml; do
+      [ -f "$config_path" ] || continue
+      addon_name="$(basename "$(dirname "$config_path")")"
+      # In a subshell: check_sync exits on failure, and one bad add-on must not hide the rest.
+      ( select_addon "$addon_name" && check_sync ) || fail=1
+    done
+    [ "$fail" -eq 0 ] || exit 1
     exit 0
     ;;
   bump)
     ;;
   *)
     # No mode given: resolve the latest upstream tag and bump. The single argument, if any, is an
-    # add-on name ("$0 dreeve_garmin_connector"); anything else is a typo.
+    # add-on name ("$0 dreeve_garmin_connector"); anything else is a typo. With no argument at all,
+    # every add-on is bumped - "is anything out of date?" is a question about the repository, not
+    # about whichever add-on happens to be the default.
     if [ -n "$MODE" ] && [ ! -f "${ROOT_DIR}/${MODE}/config.yaml" ]; then
       usage
       exit 1
     fi
-    select_addon "$MODE"
-    resolved_version="$(fetch_latest_upstream_version)"
-    echo "Resolved upstream version (git tags): ${resolved_version}"
-    run_bump "$resolved_version"
-    check_sync
-    if [ "${LAST_BUMP_CHANGED:-0}" = "1" ]; then
-      print_commit_message "$resolved_version"
+    if [ -n "$MODE" ]; then
+      bump_latest "$MODE"
+      exit 0
     fi
+    fail=0
+    for config_path in "${ROOT_DIR}"/*/config.yaml; do
+      [ -f "$config_path" ] || continue
+      # Subshell: an upstream whose tags cannot be listed (private, moved, offline) must not stop the
+      # add-ons after it, and run_bump's globals are per-add-on state.
+      ( bump_latest "$(basename "$(dirname "$config_path")")" ) || fail=1
+    done
+    [ "$fail" -eq 0 ] || exit 1
     exit 0
     ;;
 esac

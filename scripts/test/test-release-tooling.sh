@@ -44,12 +44,31 @@ case "$output" in
 esac
 mv "${REPO}/dreeve_garmin_connector/CHANGELOG.md.bak" "${REPO}/dreeve_garmin_connector/CHANGELOG.md"
 
-# 3. `bump check` still works for the default add-on and for the connector.
-if (cd "$REPO" && ./scripts/bump-upstream.sh check >/dev/null 2>&1); then
-  pass "bump check defaults to statistics_for_strava"
+# 3. `bump check` still works for every add-on at once, and for a single named one.
+output="$( (cd "$REPO" && ./scripts/bump-upstream.sh check 2>&1) || true )"
+missing=""
+for addon in statistics_for_strava dreeve_garmin_connector dreeve_polar_connector; do
+  case "$output" in
+    *"$addon"*) ;;
+    *) missing="${missing} ${addon}" ;;
+  esac
+done
+if [ -z "$missing" ]; then
+  pass "bump check with no argument covers every add-on"
 else
-  fail "bump check failed for the default add-on"
+  fail "bump check skipped:${missing}"
 fi
+
+# A pin that disagrees with .upstream-version is invisible to check-release-consistency.sh, so this
+# is the only thing standing between a mismatched Dockerfile and a commit.
+sed -i.bak 's|^ARG BUILD_FROM=.*|ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-polar-connector:9.9.9|' \
+  "${REPO}/dreeve_polar_connector/Dockerfile"
+output="$( (cd "$REPO" && ./scripts/bump-upstream.sh check 2>&1) || true )"
+case "$output" in
+  *"Mismatch: dreeve_polar_connector"*) pass "a pin disagreeing with .upstream-version is rejected" ;;
+  *) fail "a mismatched pin was accepted: ${output}" ;;
+esac
+mv "${REPO}/dreeve_polar_connector/Dockerfile.bak" "${REPO}/dreeve_polar_connector/Dockerfile"
 if (cd "$REPO" && ./scripts/bump-upstream.sh check dreeve_garmin_connector >/dev/null 2>&1); then
   pass "bump check accepts an add-on argument"
 else

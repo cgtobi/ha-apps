@@ -29,4 +29,15 @@ for config_path in */config.yaml; do
   fi
 done
 
-exec "$CHECK_SCRIPT" --staged --require-bump
+"$CHECK_SCRIPT" --staged --require-bump
+
+# Also verify every add-on's pin: check-release-consistency.sh compares config.yaml against
+# CHANGELOG.md and never looks at ARG BUILD_FROM, so a Dockerfile disagreeing with .upstream-version
+# would otherwise sail through. Working tree rather than index, which is what actually gets built.
+SYNC_SCRIPT="scripts/bump-upstream.sh"
+if [ ! -x "$SYNC_SCRIPT" ]; then
+  echo "pre-commit: missing executable ${SYNC_SCRIPT}" >&2
+  exit 1
+fi
+
+exec "$SYNC_SCRIPT" check

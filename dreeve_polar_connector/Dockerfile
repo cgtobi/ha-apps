@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-polar-connector:0.1.3
+ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-polar-connector:0.1.4
 FROM ${BUILD_FROM}
 
 LABEL \

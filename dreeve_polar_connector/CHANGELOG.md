@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.12
+
+- feat: use the Polar connector's own logo for the add-on icon
+
 ## 0.1.11
 
 - fix: respect log level configuration

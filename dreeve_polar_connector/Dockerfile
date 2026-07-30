@@ -1,16 +1,16 @@
-ARG BUILD_FROM=ghcr.io/cgtobi/dreeve-polar-connector:0.1.2
+ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-polar-connector:0.1.3
 FROM ${BUILD_FROM}
 
 LABEL \
     org.opencontainers.image.title="Dreeve Polar Connector" \
     org.opencontainers.image.description="Imports Polar Flow training sessions into Dreeve" \
     org.opencontainers.image.source="https://github.com/cgtobi/ha-apps" \
-    org.opencontainers.image.url="https://github.com/cgtobi/dreeve-polar-connector" \
+    org.opencontainers.image.url="https://github.com/dreeveapp/dreeve-polar-connector" \
     org.opencontainers.image.licenses="GPL-3.0-or-later" \
     io.hass.type="app" \
     io.hass.name="Dreeve Polar Connector" \
     io.hass.description="Imports Polar Flow training sessions into Dreeve" \
-    io.hass.url="https://github.com/cgtobi/dreeve-polar-connector"
+    io.hass.url="https://github.com/dreeveapp/dreeve-polar-connector"
 
 # The add-on's own logic lands under /usr/local/lib/dreeve-ha. Nothing is installed here: the image
 # already carries the Python the connector itself runs on. PYTHONPATH is deliberately NOT set as an

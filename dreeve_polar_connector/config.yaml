@@ -1,8 +1,8 @@
 name: "Dreeve Polar Connector"
-version: "0.1.9"
+version: "0.1.10"
 slug: "dreeve_polar_connector"
 description: "Imports Polar Flow training sessions into Dreeve"
-url: "https://github.com/cgtobi/dreeve-polar-connector"
+url: "https://github.com/dreeveapp/dreeve-polar-connector"
 stage: experimental
 arch:
   - amd64

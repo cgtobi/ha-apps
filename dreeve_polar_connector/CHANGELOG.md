@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+
+- feat: bump Polar connector to 0.1.3 [Changelog](https://github.com/dreeveapp/dreeve-polar-connector/releases)
+
 ## 0.1.9
 
 - feat: bump Polar connector to 0.1.2 [Changelog](https://github.com/cgtobi/dreeve-polar-connector/releases)

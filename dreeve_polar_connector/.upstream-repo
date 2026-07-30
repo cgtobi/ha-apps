@@ -1,7 +1,7 @@
-image_repo=ghcr.io/cgtobi/dreeve-polar-connector
-git_url=https://github.com/cgtobi/dreeve-polar-connector.git
+image_repo=ghcr.io/dreeveapp/dreeve-polar-connector
+git_url=https://github.com/dreeveapp/dreeve-polar-connector.git
 display_name=Polar connector
-changelog_url=https://github.com/cgtobi/dreeve-polar-connector/releases
+changelog_url=https://github.com/dreeveapp/dreeve-polar-connector/releases
 # Empty on purpose: this upstream's release workflow renders git tag v0.1.0 as image tag 0.1.0
 # (docker/metadata-action's {{version}} strips the leading v), so the image tags carry no prefix.
 tag_prefix=

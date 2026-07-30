@@ -3,7 +3,7 @@
 Imports your Polar Flow training sessions into [Dreeve](https://github.com/dreeveapp/dreeve).
 
 This add-on runs the upstream
-[dreeve-polar-connector](https://github.com/cgtobi/dreeve-polar-connector): it lists new Polar
+[dreeve-polar-connector](https://github.com/dreeveapp/dreeve-polar-connector): it lists new Polar
 exercises, downloads their `.fit` files (falling back to `.tcx` where Polar has no FIT) and drops
 them into the Dreeve add-on's watch folder, which Dreeve then imports on its usual schedule.
 

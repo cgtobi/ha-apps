@@ -1,3 +1,4 @@
+import logging
 import unittest
 
 from dreeve_ha import statusloop
@@ -30,11 +31,13 @@ class SummarizeTest(unittest.TestCase):
             }
         )
 
+        # Significant fields first, then the two that move every cycle - the same split the
+        # change-detection uses, so the line reads in the order it is reasoned about.
         self.assertEqual(
             line,
-            "healthy=True authentication=ok backlog=42 "
+            "healthy=True authentication=ok backlog=42 backoffSeconds=0 "
             "lastSuccessfulSync=2026-07-28T10:00:00+00:00 "
-            "nextRunAt=2026-07-28T11:00:00+00:00 backoffSeconds=0",
+            "nextRunAt=2026-07-28T11:00:00+00:00",
         )
 
     def test_missing_fields_render_as_none(self):
@@ -54,17 +57,48 @@ class ReadStatusTest(unittest.TestCase):
         self.assertIsNone(statusloop.read_status(run=runner(0, "not json")))
 
 
+class LevelTest(unittest.TestCase):
+    def test_reads_the_addons_log_level(self):
+        self.assertEqual(statusloop.level({"LOG_LEVEL": "warning"}), logging.WARNING)
+        self.assertEqual(statusloop.level({"LOG_LEVEL": " DEBUG "}), logging.DEBUG)
+
+    def test_falls_back_to_info(self):
+        # Unset, blank or nonsense: the status line is the only sign of progress during a backfill,
+        # so an unreadable value must not silence it.
+        for environ in ({}, {"LOG_LEVEL": ""}, {"LOG_LEVEL": "chatty"}):
+            with self.subTest(environ=environ):
+                self.assertEqual(statusloop.level(environ), logging.INFO)
+
+
 class PollOnceTest(unittest.TestCase):
     def setUp(self):
         self.emitted = []
 
     def test_emits_a_changed_line(self):
         result = statusloop.poll_once(
-            "healthy=True", self.emitted.append, read=lambda: {"healthy": False}
+            statusloop.signature({"healthy": True}), self.emitted.append, read=lambda: {"healthy": False}
         )
 
         self.assertEqual(len(self.emitted), 1)
-        self.assertEqual(result, self.emitted[0])
+        self.assertEqual(result, statusloop.signature({"healthy": False}))
+
+    def test_a_moved_cycle_timestamp_alone_is_not_worth_a_line(self):
+        # These advance every cycle by construction. Comparing them would put a line in the log every
+        # POLL_INTERVAL forever, which is what "only log what changed" exists to avoid.
+        first = statusloop.poll_once(
+            None,
+            self.emitted.append,
+            read=lambda: {"healthy": True, "backlog": 0, "lastSuccessfulSync": "A", "nextRunAt": "B"},
+        )
+
+        second = statusloop.poll_once(
+            first,
+            self.emitted.append,
+            read=lambda: {"healthy": True, "backlog": 0, "lastSuccessfulSync": "C", "nextRunAt": "D"},
+        )
+
+        self.assertEqual(len(self.emitted), 1)
+        self.assertEqual(second, first)
 
     def test_stays_silent_when_nothing_changed(self):
         payload = {"healthy": True, "backlog": 0}
@@ -75,10 +109,12 @@ class PollOnceTest(unittest.TestCase):
         self.assertEqual(len(self.emitted), 1)
         self.assertEqual(second, first)
 
-    def test_keeps_the_previous_line_when_the_status_is_unreadable(self):
-        result = statusloop.poll_once("healthy=True", self.emitted.append, read=lambda: None)
+    def test_keeps_the_previous_value_when_the_status_is_unreadable(self):
+        previous = statusloop.signature({"healthy": True})
 
-        self.assertEqual(result, "healthy=True")
+        result = statusloop.poll_once(previous, self.emitted.append, read=lambda: None)
+
+        self.assertEqual(result, previous)
         self.assertEqual(self.emitted, [])
 
 

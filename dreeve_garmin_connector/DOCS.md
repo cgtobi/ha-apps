@@ -39,10 +39,13 @@ changes.
 
 ## Reading the log
 
-One line is logged whenever the connector's status changes:
+One line is logged whenever something worth knowing about the connector's status changes — not on
+every cycle. `lastSuccessfulSync` and `nextRunAt` are reported but deliberately not compared, since
+they advance on every cycle by construction and would turn this into a heartbeat. These lines follow
+the `log_level` option, so `warning` and above silence them entirely.
 
 ```
-healthy=True authentication=ok backlog=42 lastSuccessfulSync=... nextRunAt=... backoffSeconds=0
+healthy=True authentication=ok backlog=42 backoffSeconds=0 lastSuccessfulSync=... nextRunAt=...
 ```
 
 - `authentication` anything other than `ok` means the session is dead: set `garmin_password` again,

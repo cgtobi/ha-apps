@@ -8,26 +8,51 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import subprocess
 import sys
 import time
 
 STATUS_COMMAND = ["/opt/venv/bin/dreeve-garmin-connector", "status"]
 POLL_SECONDS = 300
-FIELDS = (
+
+# What "something changed" means. Deliberately excludes the two timestamps below: they advance on
+# every cycle whether or not anything happened, so comparing them would emit a line per cycle - a
+# heartbeat that buries the lines worth reading.
+SIGNIFICANT = (
     "healthy",
     "authentication",
     "backlog",
-    "lastSuccessfulSync",
-    "nextRunAt",
     "backoffSeconds",
 )
+# Reported, but not compared.
+FIELDS = SIGNIFICANT + ("lastSuccessfulSync", "nextRunAt")
+
+LEVELS = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+}
 
 logger = logging.getLogger("dreeve-ha.status")
 
 
 def summarize(payload):
     return " ".join("{0}={1}".format(field, payload.get(field)) for field in FIELDS)
+
+
+def signature(payload):
+    """What is compared between polls: the reported line minus the fields that always move."""
+    return tuple(payload.get(field) for field in SIGNIFICANT)
+
+
+def level(environ=None):
+    """The add-on's log_level option, which reaches this process as LOG_LEVEL in the sourced env."""
+    environ = os.environ if environ is None else environ
+
+    return LEVELS.get(environ.get("LOG_LEVEL", "").strip().lower(), logging.INFO)
 
 
 def read_status(run=subprocess.run, command=STATUS_COMMAND):
@@ -42,19 +67,19 @@ def read_status(run=subprocess.run, command=STATUS_COMMAND):
 
 
 def poll_once(previous, emit, read=read_status):
-    """Emits the status line when it changed. Returns the line to compare against next time."""
+    """Emits the status line when something significant changed. Returns the next comparison value."""
     payload = read()
     if payload is None:
         return previous
-    line = summarize(payload)
-    if line != previous:
-        emit(line)
-    return line
+    current = signature(payload)
+    if current != previous:
+        emit(summarize(payload))
+    return current
 
 
 def main(poll_seconds=POLL_SECONDS, sleep=time.sleep, read=read_status):
     logging.basicConfig(
-        stream=sys.stdout, level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s"
+        stream=sys.stdout, level=level(), format="%(asctime)s [%(name)s] %(message)s"
     )
     previous = None
     previous_error = None

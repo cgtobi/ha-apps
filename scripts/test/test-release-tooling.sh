@@ -83,7 +83,7 @@ fi
 addon="${REPO}/dreeve_polar_connector"
 [ "$(cat "${addon}/.upstream-version")" = "9.9.9" ] \
   && pass "a bare-prefix upstream records the tag without a 'v'" || fail ".upstream-version carries a 'v'"
-grep -q 'ARG BUILD_FROM=ghcr.io/cgtobi/dreeve-polar-connector:9.9.9$' "${addon}/Dockerfile" \
+grep -q 'ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-polar-connector:9.9.9$' "${addon}/Dockerfile" \
   && pass "a bare-prefix upstream is pinned without a 'v'" || fail "Dockerfile pin carries a 'v'"
 grep -q '^- feat: bump Polar connector to 9.9.9' "${addon}/CHANGELOG.md" \
   && pass "changelog entry matches the bare tag" || fail "changelog entry does not match the bare tag"

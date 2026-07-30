@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8
+
+- feat: bump Polar connector to 0.1.1 [Changelog](https://github.com/cgtobi/dreeve-polar-connector/releases)
+
 ## 0.1.7
 
 - feat: add a `redirect_uri` option

@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/cgtobi/dreeve-polar-connector:0.1.0
+ARG BUILD_FROM=ghcr.io/cgtobi/dreeve-polar-connector:0.1.1
 FROM ${BUILD_FROM}
 
 LABEL \

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.15
+
+- fix: admin panel's "Back to app" links no longer leave the add-on
+
 ## 0.5.14
 
 - feat: bump Dreeve to v5.1.3 [Changelog](https://docs.dreeve.app/#/changelog)

@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve:v5.1.4
+ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve:v5.1.5
 FROM ${BUILD_FROM}
 
 LABEL \

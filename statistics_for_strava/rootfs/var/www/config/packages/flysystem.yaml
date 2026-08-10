@@ -1,18 +1,22 @@
 # Read the documentation at https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md
 #
-# Storage KEYS must match upstream so flysystem-bundle's autowiring aliases line
-# up with the constructor params the app injects: build-html.storage ->
-# $buildHtmlStorage, build_api.storage -> $buildApiStorage, build.storage ->
-# $buildStorage, etc. Only the directories are overridden here to persist data
-# and build output under /data (where Caddy serves the static site from).
+# OVERRIDDEN UPSTREAM FILE — resync on every image bump.
 #
-# Do NOT rename the keys (e.g. build.storage/api.storage): an unmatched
+# Storage KEYS must match upstream exactly so flysystem-bundle's autowiring
+# aliases line up with the constructor params the app injects (file.storage ->
+# $fileStorage, database.storage -> $databaseStorage, and so on). An unmatched
 # FilesystemOperator param silently falls back to default.storage
-# (%kernel.project_dir%) and writes land in /var/www instead of /data, so newly
-# built pages never reach the served build dir. Upstream split build output into
-# build-html/build_api in v4.8.x; keep these keys in sync on version bumps. In v5
-# gear maintenance moved into the DB, so the gear-maintenance.storage key was
-# dropped upstream and removed here to keep the key set matching.
+# (%kernel.project_dir%), so writes land in the container layer instead of /data
+# and reads come up empty — with no error anywhere.
+#
+# Only the directories are overridden here, and only for the storages that hold
+# user data (files, database), so they persist under /data. Everything else keeps
+# upstream's project-relative directory.
+#
+# Key-set history: v4.8.x split build output into build-html/build_api; v5.0
+# moved gear maintenance into the DB (gear-maintenance.storage dropped); v5.2.0
+# removed the pre-built HTML/API output entirely (build.storage, build-html.storage
+# and build_api.storage dropped) and added countries-geography.storage.
 flysystem:
     storages:
         default.storage:
@@ -25,23 +29,15 @@ flysystem:
             options:
                 directory: '/data/storage/files'
                 lock: 0
+        countries-geography.storage:
+            adapter: 'local'
+            options:
+                directory: '%kernel.project_dir%/src/Domain/Activity/Route/assets/countries'
+                lock: 0
+            visibility: public
+            directory_visibility: public
         database.storage:
             adapter: 'local'
             options:
                 directory: '/data/storage/database'
-                lock: 0
-        build.storage:
-            adapter: 'local'
-            options:
-                directory: '/data/build'
-                lock: 0
-        build-html.storage:
-            adapter: 'local'
-            options:
-                directory: '/data/build/html'
-                lock: 0
-        build_api.storage:
-            adapter: 'local'
-            options:
-                directory: '/data/build/api'
                 lock: 0

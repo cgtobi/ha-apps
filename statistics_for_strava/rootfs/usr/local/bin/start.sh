@@ -18,14 +18,6 @@ log() {
   echo "$(timestamp) [start] $*"
 }
 
-# Only emitted when CADDY_LOG_LEVEL=DEBUG; keeps the 30s ingress
-# rewrite loop from spamming the log on every iteration.
-debug_log() {
-  case "$(printf '%s' "${CADDY_LOG_LEVEL:-}" | tr '[:upper:]' '[:lower:]')" in
-    debug) echo "$(timestamp) [start] $*" ;;
-  esac
-}
-
 run_daemon_forever() {
   while true; do
     if sh /etc/services.d/daemon/run; then
@@ -46,22 +38,6 @@ run_watch_normalize_forever() {
   while true; do
     sh /usr/local/bin/sfs-normalize-watch.sh >/dev/null 2>&1 || true
     sleep 15
-  done
-}
-
-run_ingress_rewrite_forever() {
-  while true; do
-    started_at="$(date +%s)"
-    debug_log "ingress rewrite loop started"
-    if ! SFS_RECONCILE_REWRITE_ONLY=1 sh /usr/local/bin/sfs-reconcile-config.sh >/tmp/sfs-rewrite-loop.log 2>&1; then
-      log "ingress rewrite loop failed; showing recent output"
-      tail -n 20 /tmp/sfs-rewrite-loop.log || true
-    else
-      finished_at="$(date +%s)"
-      duration_seconds=$((finished_at - started_at))
-      debug_log "ingress rewrite loop finished in ${duration_seconds}s"
-    fi
-    sleep 30
   done
 }
 
@@ -108,9 +84,6 @@ fi
 
 sh /usr/local/bin/sfs-startup-preflight.sh
 
-log "Launching ingress rewrite loop"
-run_ingress_rewrite_forever &
-
 # Normalise any files already waiting before the daemon's first import, then keep
 # normalising newly-dropped files on a short loop.
 sh /usr/local/bin/sfs-normalize-watch.sh >/dev/null 2>&1 || true
@@ -120,14 +93,13 @@ run_watch_normalize_forever &
 log "Launching daemon"
 run_daemon_forever &
 
-# Run the slow data reconcile (combined import+build, via app:cron:run-file-import
-# / app:cron:run-strava-import --import --build) in the background so the web
-# server (and /healthz) can come up immediately. init already ran the fast config
-# phase (DB migration only; config now lives in the DB, so there is no separate
-# render/validate step), so the DB schema is ready; pages 404 with a "building"
-# state only until the first import+build lands, instead of the watchdog seeing
-# a closed port for the whole import and restarting the addon.
-log "Launching background data reconcile (import + build)"
+# Run the slow data reconcile (the startup Strava import) in the background so the
+# web server (and /healthz) can come up immediately. init already ran the fast
+# config phase (DB migration only; config now lives in the DB), so the DB schema
+# is ready; pages 404 until the first import lands, instead of the watchdog seeing
+# a closed port for the whole import and restarting the addon. In files mode the
+# data phase is a no-op — the daemon owns the watch dir.
+log "Launching background data reconcile (startup import)"
 ( SFS_RECONCILE_PHASE=data sh /usr/local/bin/sfs-reconcile-config.sh \
     >/tmp/sfs-data-reconcile.log 2>&1 ) &
 

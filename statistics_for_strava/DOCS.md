@@ -88,7 +88,7 @@ This add-on runs both required processes inside one container:
 - Web UI: `frankenphp` on port `8080`
 - Scheduler/daemon: `bin/console app:daemon:run`
 - Health endpoint: `GET /healthz` on port `8080` (used by Home Assistant watchdog; returns `503` if required runtime paths are unavailable or the daemon process is not alive; includes a short startup grace period to avoid flapping)
-- `/manifest.json` and `/assets/*` are served from Symfony `public/`; dashboard `.html` is served from `/data/build/html`.
+- Static assets (`/assets/*`, `/css/*`, `/js/*`, `/libraries/*`) are served from Symfony `public/`; every page and page fragment is rendered on request by the app itself (Dreeve v5.2.0 dropped pre-built HTML).
 
 ## Persistent directories
 
@@ -96,14 +96,13 @@ This add-on runs both required processes inside one container:
 - `/data/storage/database`
 - `/data/storage/files`
 - `/data/storage/gear-maintenance`
-- `/data/build`
 
 ## Notes
 
 - Home Assistant Ingress is enabled and is the recommended way to access the UI from HA.
 - Direct port access via `8080/tcp` remains available for external/reverse-proxy access.
 - On startup, the add-on runs database migrations; on first boot this also seeds the database from any legacy `config.yaml` left by a v4 install.
-- The recurring import and dashboard build is handled automatically by the add-on's built-in daemon — there is nothing to schedule or configure for this.
+- The recurring activity import is handled automatically by the add-on's built-in daemon — there is nothing to schedule or configure for this.
 - Runtime secrets (Strava credentials, the admin password hash, the app secret) are injected via container environment only; no `.env.local` secrets file is written.
 - Strava webhooks still require public HTTPS reachability to your webhook endpoint (the Home Assistant ingress URL is not a public webhook endpoint).
 

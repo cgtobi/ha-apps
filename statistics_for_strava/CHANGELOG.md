@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.19
+
+- fix: activity and segment title links open again. Dreeve v5.2.0 moved those modals from `activity/<id>.html` to `api/fragment/page/activity/<id>`, but the add-on ships a patched copy of `UrlTwigExtension` that still emitted the old `.html` URLs, which no longer exist. Links built inline by templates (photos, rewind, month, best efforts) were unaffected, which is why only the title links were dead.
+- fix: the admin panel's "Return to app" link lands on the dashboard instead of an empty page. It points at the app root, and under ingress the SPA router could not recognise that root as the app base, so it kept the whole `/api/hassio_ingress/<token>` prefix as the route, matched no nav link and rendered nothing. The base path is now taken from the request (`X-Forwarded-Prefix`) instead of `APP_URL`, so upstream's own root→dashboard handling applies.
+- fix: per-page JavaScript works under ingress again — the heatmap, photo gallery and milestone maps load. The page name is derived by stripping the base path off the route; with the base path unknown it came out as `api-hassio_ingress-<token>-heatmap` and no page module matched.
+- fix: country geography storage pointed at the wrong directory after the v5.2.0 bump. The add-on's `flysystem.yaml` is now resynced with upstream's storage keys (the removed build storages dropped, `countries-geography.storage` added).
+- fix: chart drill-downs ("show these activities") navigate correctly behind a base path; the two hardcoded router targets in the bundle are patched at image build.
+- fix: render caches are keyed per base path, so a page rendered during one ingress session can no longer be served to another with that session's expired token embedded in every link.
+- chore: drop the machinery that post-processed pre-built HTML — the ingress rewrite loop and its 30s timer, the build-output pruning, the ingress API shim, and the Caddy handlers that served `/data/build/html`. v5.2.0 renders everything on request, so none of it had anything left to act on.
+
 ## 0.5.18
 
 - feat: bump Dreeve to v5.2.0 [Changelog](https://docs.dreeve.app/#/changelog)

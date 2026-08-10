@@ -58,21 +58,12 @@
 		?Permissions-Policy "browsing-topics=()"
 	}
 
-	# Serve dashboard index at / from generated static build output.
-	@rootPath path /
-	handle @rootPath {
-		root * /data/build/html
-		rewrite * /index.html
-		file_server
-	}
-
-	# Compatibility fallback for malformed relative route ".html".
-	@emptyHtmlPath path_regexp emptyhtml ^/\.html$
-	handle @emptyHtmlPath {
-		redir ./dashboard.html 302
-	}
-
-	# Serve static frontend build resources.
+	# Static frontend resources ship inside the image under /var/www/public.
+	#
+	# There is deliberately no handler for /data/build/html here: v5.2.0 dropped
+	# pre-built HTML entirely and renders every page (including "/") and every
+	# fragment through Symfony, so anything not matched below must fall through to
+	# the front controller at the bottom of this file.
 	handle /css/* {
 		root * /var/www/public
 		file_server
@@ -94,15 +85,6 @@
 			Cache-Control "public, max-age=86400"
 		}
 		root * /var/www/public
-		file_server
-	}
-
-	# Serve static .html from build/html
-	@staticBuildFiles {
-		path *.html
-	}
-	handle @staticBuildFiles {
-		root * /data/build/html
 		file_server
 	}
 

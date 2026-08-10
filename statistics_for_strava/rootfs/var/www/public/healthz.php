@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 $startupGraceSeconds = 120;
 
+// v5.2.0 renders every page per request, so there is no build output directory
+// left to check here — only the persisted data locations and the daemon.
 $checks = [
     '/data/storage/database' => ['exists' => true, 'writable' => true],
     '/data/storage/files/logs' => ['exists' => true, 'writable' => true],
-    '/data/build/html' => ['exists' => true, 'readable' => true],
 ];
 
 $errors = false;

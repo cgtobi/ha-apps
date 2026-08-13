@@ -182,7 +182,10 @@ check_sync() {
 
 print_commit_message() {
   version="$1"
-  printf '\nfeat: bump %s upstream to %s\n' "$ADDON" "$version"
+  # The display name, not the directory: statistics_for_strava keeps its directory (and add-on slug)
+  # for the sake of existing installations, long after the upstream was renamed to Dreeve. Naming the
+  # directory here produced commit subjects that had to be rewritten by hand every time.
+  printf '\nfeat: bump %s upstream to %s\n' "$DISPLAY_NAME" "$version"
 }
 
 append_changed_file() {

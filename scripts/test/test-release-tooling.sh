@@ -107,6 +107,30 @@ grep -q 'ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-polar-connector:9.9.9$' "${addo
 grep -q '^- feat: bump Polar connector to 9.9.9' "${addon}/CHANGELOG.md" \
   && pass "changelog entry matches the bare tag" || fail "changelog entry does not match the bare tag"
 
+# 4c. The suggested commit subject names the add-on the way its users know it, not the way its
+# directory is spelled - statistics_for_strava is still called that on disk because the add-on slug
+# cannot change under existing installations, so the directory name is never the right label.
+# A throwaway local repository stands in for the upstream, so this needs no network.
+FAKE_UPSTREAM="${WORK_DIR}/fake-upstream"
+git init -q "$FAKE_UPSTREAM"
+(cd "$FAKE_UPSTREAM" \
+  && git -c user.email=test@example.com -c user.name=test -c commit.gpgsign=false \
+       commit -q --allow-empty -m init \
+  && git tag v9.9.10)
+sed -i.bak "s|^git_url=.*|git_url=${FAKE_UPSTREAM}|" "${REPO}/dreeve_garmin_connector/.upstream-repo"
+rm -f "${REPO}/dreeve_garmin_connector/.upstream-repo.bak"
+output="$( (cd "$REPO" && ./scripts/bump-upstream.sh dreeve_garmin_connector 2>&1) || true )"
+case "$output" in
+  *"feat: bump Garmin connector upstream to v9.9.10"*)
+    pass "the commit subject uses the display name" ;;
+  *) fail "commit subject did not use the display name: ${output}" ;;
+esac
+case "$output" in
+  *"bump dreeve_garmin_connector upstream"*)
+    fail "commit subject still names the directory: ${output}" ;;
+  *) pass "the commit subject does not name the directory" ;;
+esac
+
 # 5. The bumped tree is self-consistent again.
 if (cd "$REPO" && ./scripts/check-release-consistency.sh >/dev/null 2>&1); then
   pass "the bumped tree is consistent"

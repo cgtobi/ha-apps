@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.20
+
+- feat: bump Dreeve to v5.2.1 [Changelog](https://docs.dreeve.app/#/changelog)
+
 ## 0.5.19
 
 - fix: activity and segment title links open again. Dreeve v5.2.0 moved those modals from `activity/<id>.html` to `api/fragment/page/activity/<id>`, but the add-on ships a patched copy of `UrlTwigExtension` that still emitted the old `.html` URLs, which no longer exist. Links built inline by templates (photos, rewind, month, best efforts) were unaffected, which is why only the title links were dead.

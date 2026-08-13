@@ -54,6 +54,24 @@ docker build -t dreeve-polar-connector-local ./dreeve_polar_connector
 docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve-polar-connector:0.1.3 -t dreeve-polar-connector-local ./dreeve_polar_connector
 ```
 
+### [Dreeve Wahoo Connector](./dreeve_wahoo_connector)
+
+![Supports amd64 Architecture][amd64-shield]
+
+_Imports Wahoo workouts into Dreeve. Requires the Dreeve add-on with `import_mode: files` and `expose_share: true`, plus your own Wahoo application and a one-time authorization in the browser._
+
+Note: amd64 only, unlike the two connectors above. Upstream publishes a `linux/amd64`-only image
+(`docker buildx imagetools inspect`), so the add-on's `arch` declares just that one — offering it on an
+ARM host would only fail at the base-image pull.
+
+The Dreeve Wahoo Connector add-on uses the upstream GHCR image as its base image. That upstream
+publishes no releases, so the pin is a `sha-` tag. To test the local build directly:
+
+```sh
+docker build -t dreeve-wahoo-connector-local ./dreeve_wahoo_connector
+docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve-wahoo-connector:sha-eb2e511 -t dreeve-wahoo-connector-local ./dreeve_wahoo_connector
+```
+
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
 [armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg

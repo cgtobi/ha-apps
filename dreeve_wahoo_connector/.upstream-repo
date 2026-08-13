@@ -1,0 +1,10 @@
+image_repo=ghcr.io/dreeveapp/dreeve-wahoo-connector
+git_url=https://github.com/dreeveapp/dreeve-wahoo-connector.git
+display_name=Wahoo connector
+# Commits, not releases: this upstream has published neither git tags nor versioned image tags.
+changelog_url=https://github.com/dreeveapp/dreeve-wahoo-connector/commits/main
+# Empty on purpose: the published tags are `latest` and `sha-<short>`, so there is no `v` to add. The
+# newest build is the sha- tag whose digest matches latest's; `bump-upstream.sh <addon>` cannot
+# resolve it, because it looks for semver git tags. Pin by hand:
+#   scripts/bump-upstream.sh bump dreeve_wahoo_connector sha-XXXXXXX
+tag_prefix=

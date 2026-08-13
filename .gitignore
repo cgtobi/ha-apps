@@ -1,3 +1,6 @@
 .DS_Store
 __pycache__/
 *.pyc
+
+# Working notes: design specs and implementation plans stay local.
+docs/superpowers/

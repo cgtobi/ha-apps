@@ -1,0 +1,40 @@
+configuration:
+  wahoo_client_id:
+    name: Wahoo client ID
+    description: >-
+      From the application you created at developers.wahooligan.com.
+  wahoo_client_secret:
+    name: Wahoo client secret
+    description: >-
+      From the same application. Needed to authorize and to refresh the token afterwards.
+  redirect_uri:
+    name: Redirect URI
+    description: >-
+      Where Wahoo sends the browser back, usually http://homeassistant.local:8085/callback. Must match
+      the redirect URI registered with your Wahoo application exactly, trailing slash included. An
+      https URL makes the add-on serve the dashboard over HTTPS with a self-signed certificate.
+  sync_time_window:
+    name: Sync window
+    description: >-
+      How far back each sync cycle reaches. Wahoo serves the full history, so all_time backfills
+      everything - at 1 second per API request.
+  sync_cron:
+    name: Sync schedule
+    description: >-
+      Five-field cron expression for background syncs, evaluated in UTC regardless of the timezone
+      option. Leave empty for the connector's own default of 02:00 UTC daily.
+  tz:
+    name: Timezone
+    description: >-
+      Timezone for this add-on's log timestamps. It does not shift the sync schedule, which is UTC.
+  watch_dir:
+    name: Watch folder
+    description: >-
+      Leave empty to auto-detect the Dreeve add-on's watch folder. Set it only if auto-detection
+      finds more than one candidate.
+  extra_env:
+    name: Extra settings
+    description: >-
+      Additional connector settings as KEY=VALUE, for example WAHOO_SCOPES=user_read workouts_read or
+      USE_HTTPS=true. DATA_DIR, PORT, WATCH_DIR and DREEVE_WATCH_DIR are managed by the add-on and
+      cannot be set here.

@@ -162,11 +162,23 @@ chmod 600 "$APP_SECRET_FILE" 2>/dev/null || true
 
 # Hash the plaintext admin_password into the hash the app verifies against. The
 # app itself produces it so the algorithm always matches.
-ADMIN_PASSWORD_HASH="$(cd /var/www \
-  && COLUMNS=400 php bin/console security:hash-password "$ADMIN_PASSWORD" --no-interaction 2>/dev/null \
-  | grep -Eo '\$(argon2id|argon2i|2y)\$[^[:space:]]+' | tail -n1)"
+HASH_CMD_OUTPUT="$(cd /var/www \
+  && COLUMNS=400 php bin/console security:hash-password "$ADMIN_PASSWORD" --no-interaction 2>&1 || true)"
+ADMIN_PASSWORD_HASH="$(printf '%s\n' "$HASH_CMD_OUTPUT" \
+  | grep -Eo '\$(argon2id|argon2i|2y)\$[^[:space:]]+' | tail -n1 || true)"
 if [ -z "$ADMIN_PASSWORD_HASH" ]; then
   fatal "Could not hash admin_password via security:hash-password"
+  # Echo what the command actually said; without it a container-compilation
+  # failure (e.g. an overridden config file referencing a class upstream renamed)
+  # is invisible and the add-on just dies here. The plaintext password is masked
+  # in case the command echoes its argument back.
+  printf '%s\n' "$HASH_CMD_OUTPUT" \
+    | sed "s#$(printf '%s' "$ADMIN_PASSWORD" | sed 's/[\\/&#]/\\&/g')#***#g" \
+    | grep -v 'User Deprecated' \
+    | head -n 20 \
+    | while IFS= read -r line; do
+        echo "$(timestamp) [init] hash-password: $line"
+      done
   exit 1
 fi
 # start.sh runs this script as a child, so exports do not propagate up. Persist

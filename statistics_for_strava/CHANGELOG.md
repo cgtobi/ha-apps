@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.21
+
+- fix: the add-on starts again. Its patched copy of `framework.yaml` still named the asset version strategy `UuidAssetVersioningStrategy`, which Dreeve v5.2.1 ships as `AssetVersioningStrategy`. The missing class broke Symfony container compilation for every `bin/console` call, so startup died while hashing `admin_password`.
+- chore: startup now logs what `security:hash-password` actually reported when hashing fails (with the password masked), instead of only "Could not hash admin_password".
+- chore: the image build fails when an overridden config file names a class the upstream image does not have, so this class of stale override is caught at build time.
+
 ## 0.5.20
 
 - feat: bump Dreeve to v5.2.1 [Changelog](https://docs.dreeve.app/#/changelog)

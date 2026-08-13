@@ -34,6 +34,10 @@ RUN set -eu; \
     sed -i 's#navigateTo("/activities")#navigateTo((window.dreeve?.appUrl?.basePath?"/"+window.dreeve.appUrl.basePath:"")+"/activities")#g' "$app_js"; \
     ! grep -q 'navigateTo("/activities")' "$app_js"
 
+# Fail the build when an overridden upstream file references a class upstream has
+# renamed or moved (at runtime that only shows up as an opaque init failure).
+RUN sh /usr/local/bin/sfs-verify-overrides.sh
+
 # The upstream ENTRYPOINT (added in v4.8.8) runs
 #   flock /var/www/storage/database/migrate.lock php bin/console app:db:migrate
 # before exec'ing our CMD. At that point our cont-init has not yet created the

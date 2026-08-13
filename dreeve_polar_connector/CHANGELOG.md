@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.15
+
+- chore: remove experimental stage
+
 ## 0.1.14
 
 - feat: bump Polar connector to 0.2.0 [Changelog](https://github.com/dreeveapp/dreeve-polar-connector/releases)

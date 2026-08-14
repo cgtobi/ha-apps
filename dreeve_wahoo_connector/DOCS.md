@@ -32,6 +32,7 @@ not offered on ARM hosts.
 | `sync_cron` | `0 * * * *` | 5-field cron expression for scheduled syncs, **in UTC**. Hourly by default. Empty means the connector's own default of 02:00 UTC daily. |
 | `tz` | `Etc/GMT` | Timezone for the log timestamps. It does **not** move `sync_cron`, which upstream evaluates in UTC. |
 | `watch_dir` | - | Leave empty to auto-detect the Dreeve add-on's watch folder. Set it if auto-detection reports several candidates. |
+| `log_level` | `info` | `debug`, `info`, `warning`, `error` or `critical`. |
 | `extra_env` | `[]` | Extra connector settings as `KEY=VALUE`, for example `WAHOO_SCOPES=user_read workouts_read` or `USE_HTTPS=true`. |
 
 Clearing `sync_time_window` or `sync_cron` does not export an empty value; the add-on omits the
@@ -39,22 +40,23 @@ variable, so upstream's own default applies (`1_week`, and daily at 02:00 UTC). 
 syncs off altogether, add `SYNC_CRON=` to `extra_env` - that exports the variable empty, which is how
 upstream is told to run no schedule. Syncing on demand from the dashboard still works.
 
-`extra_env` cannot set `DATA_DIR`, `PORT`, `WATCH_DIR` or `DREEVE_WATCH_DIR`: the add-on owns those,
-and overriding them would break persistence and the token store, the dashboard and the watchdog, or
-delivery. Attempts are logged and ignored.
+`extra_env` cannot set `DATA_DIR`, `PORT`, `WATCH_DIR`, `STATE_DIR` or `VERIFY_FILES_ON_DISK`: the
+add-on owns those, and overriding them would break persistence, the token store and the sync history,
+the dashboard and the watchdog, or delivery into Dreeve. Attempts are logged and ignored.
 
-`WATCH_DIR` is refused even though nothing here exports it and current upstream ignores it. A planned
-upstream change gives that name to upstream's own download directory, and setting it by hand on such a
-build would have upstream write straight into the folder Dreeve empties - which, because upstream
-decides "already downloaded" by asking whether the file is still on disk, means re-downloading the
-whole sync window on every cycle.
+`VERIFY_FILES_ON_DISK` is the one worth explaining, because the name reads like a safety net and it is
+the opposite of one here. Upstream skips a workout that its sync history already records; switching
+this on makes it also require the downloaded file to still be on disk. Under Dreeve it never is -
+Dreeve deletes every file it imports - so every workout inside `sync_time_window` would be downloaded
+again on every cycle, spending Wahoo's daily quota and re-importing the same rides, with nothing in the
+log to say why.
 
 Useful `extra_env` settings: `WAHOO_SCOPES` (default `user_read workouts_read`), `USE_HTTPS` (see
 below) and `SYNC_CRON=` as described above.
 
 ## Troubleshooting
 
-**No OPEN WEB UI button?** Home Assistant builds it from the host port published for 8080, taken from
+**No OPEN WEB UI button?** Home Assistant builds it from the host port published for 8085, taken from
 the add-on's **Configuration → Network** panel. If that field is empty the button disappears. Fill it
 in with `8085` and restart, or open `http://<home-assistant-host>:8085/` by hand - the button is only a
 shortcut.
@@ -66,7 +68,7 @@ verbatim, so remapping 8085 to, say, 8185 means registering
 
 **Wahoo refuses a plain-HTTP redirect?** Register an `https://<home-assistant-host>:8085/callback` URI
 instead and set `redirect_uri` to it. An `https://` redirect makes the connector serve the dashboard
-over TLS with a certificate it generates itself into `/data/config`, so the browser shows a warning
+over TLS with a certificate it generates itself into `/data/state`, so the browser shows a warning
 that has to be accepted once. `USE_HTTPS=true` in `extra_env` has the same effect and is not needed on
 top of an `https://` redirect.
 
@@ -108,27 +110,35 @@ has been earned.
   schedule fires next.
 - `last_result_status` and `last_result_errors` come from the last cycle this process ran, so both read
   `None` until one has finished - a restart resets them.
-- `total_downloaded` counts the `.fit` files upstream still has in `/data/downloads`. Since the add-on
-  never deletes them, that is everything it has ever downloaded.
-- One line is logged per file delivered into the watch folder.
+- `total_downloaded` counts every workout upstream's sync history records, plus any `.fit` file in the
+  watch folder that the history does not know about. It therefore keeps counting workouts Dreeve has
+  already imported and deleted; the dashboard lists those with a size of `N/A (Processed)`.
+- The connector logs its own line per downloaded workout (`Successfully downloaded new workout ...`).
+  Nothing is logged after that, because nothing else happens to the file - it is written into the
+  watch folder and Dreeve picks it up from there.
 
 A quiet log therefore means nothing changed. The one exception: if the status cannot be read at all for
 three polls in a row - about 15 minutes - the add-on logs a single warning, because "not up yet" and
 "never coming up" otherwise look identical.
 
+Both the status lines and the connector's own output follow the `log_level` option, so `warning` and
+above silence them entirely, and `debug` adds a line per workout upstream decided to skip. The add-on's
+startup messages are printed unconditionally, since an add-on that cannot start has to say so.
+
 ## Persistent data
 
 | Path | Contents |
 |---|---|
-| `/data/config/tokens.json` | The Wahoo access and refresh tokens, refreshed automatically |
-| `/data/config/sync_history.json` | Upstream's record of which workouts it downloaded |
-| `/data/downloads` | Every downloaded `.fit` file, kept |
-| `/data/state/relayed.json` | Which of those files were already copied into the watch folder |
+| `/data/state/tokens.json` | The Wahoo access and refresh tokens, refreshed automatically |
+| `/data/state/sync_history.json` | Upstream's record of which workouts it downloaded |
+| `/data/state/cert.pem`, `/data/state/key.pem` | The self-signed certificate, only when the dashboard serves HTTPS |
 
-The add-on copies new `.fit` files out of `/data/downloads` into the watch folder every 15 seconds,
-writing to a `.tmp` name and renaming it into place so Dreeve never sees a partial file, and it never
-deletes the source.
+That is all of it. The `.fit` files themselves are not kept here: the add-on exports `STATE_DIR=/data/state`
+and `WATCH_DIR=<Dreeve's watch folder>`, so downloads land in the watch folder and are Dreeve's to
+delete. The add-on's data, and every Home Assistant backup that includes it, stays a few kilobytes
+regardless of how many workouts have been synced.
 
-Deleting `relayed.json` re-delivers everything still in `/data/downloads`, without contacting Wahoo -
-harmless, since Dreeve skips a workout it has already imported. Deleting `sync_history.json` makes
-upstream download those workouts from Wahoo again.
+Deleting `sync_history.json` makes upstream download every workout in `sync_time_window` from Wahoo
+again and hand it to Dreeve a second time - harmless, since Dreeve skips a workout it has already
+imported, but it spends Wahoo's daily request quota. Deleting `tokens.json` requires authorizing again
+from the dashboard.

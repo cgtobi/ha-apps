@@ -69,7 +69,7 @@ publishes no releases, so the pin is a `sha-` tag. To test the local build direc
 
 ```sh
 docker build -t dreeve-wahoo-connector-local ./dreeve_wahoo_connector
-docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve-wahoo-connector:sha-eb2e511 -t dreeve-wahoo-connector-local ./dreeve_wahoo_connector
+docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve-wahoo-connector:sha-4ed0b56 -t dreeve-wahoo-connector-local ./dreeve_wahoo_connector
 ```
 
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg

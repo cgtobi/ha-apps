@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import ssl
 import sys
 import time
@@ -49,6 +50,14 @@ SIGNIFICANT = (
 # the line, never compared, because they carry the detail a user reads once a line has been earned.
 FIELDS = SIGNIFICANT + ("total_downloaded", "is_syncing", "last_result_errors")
 
+LEVELS = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+}
+
 logger = logging.getLogger("dreeve-ha.status")
 
 
@@ -73,6 +82,13 @@ def signature(payload):
     return tuple(
         json.dumps(payload.get(field), sort_keys=True, default=str) for field in SIGNIFICANT
     )
+
+
+def level(environ=None):
+    """The add-on's log_level option, which reaches this process as LOG_LEVEL in the sourced env."""
+    environ = os.environ if environ is None else environ
+
+    return LEVELS.get(environ.get("LOG_LEVEL", "").strip().lower(), logging.INFO)
 
 
 def unverified_context():
@@ -143,7 +159,7 @@ def poll_once(previous, emit, read=read_status, unreadable=0, warn=None):
 
 def main(poll_seconds=POLL_SECONDS, sleep=time.sleep, read=read_status):
     logging.basicConfig(
-        stream=sys.stdout, level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s"
+        stream=sys.stdout, level=level(), format="%(asctime)s [%(name)s] %(message)s"
     )
     previous = None
     # Carried across iterations, or every poll would start from zero and the warning above would

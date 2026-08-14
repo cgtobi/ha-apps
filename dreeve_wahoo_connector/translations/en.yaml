@@ -32,9 +32,12 @@ configuration:
     description: >-
       Leave empty to auto-detect the Dreeve add-on's watch folder. Set it only if auto-detection
       finds more than one candidate.
+  log_level:
+    name: Log level
+    description: How much the connector writes to the add-on log.
   extra_env:
     name: Extra settings
     description: >-
       Additional connector settings as KEY=VALUE, for example WAHOO_SCOPES=user_read workouts_read or
-      USE_HTTPS=true. DATA_DIR, PORT, WATCH_DIR and DREEVE_WATCH_DIR are managed by the add-on and
-      cannot be set here.
+      USE_HTTPS=true. DATA_DIR, PORT, WATCH_DIR, STATE_DIR and VERIFY_FILES_ON_DISK are managed by the
+      add-on and cannot be set here.

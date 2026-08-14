@@ -4,11 +4,11 @@ There is no add-on login step: Wahoo authorization is an OAuth redirect the conn
 serves on PORT. That port is owned by the add-on - moving it would take away the dashboard, the
 watchdog's only signal and the published host port in one go.
 
-DATA_DIR is owned for a second reason. Upstream keeps every file it has downloaded under
-$DATA_DIR/downloads and asks whether that exact file still exists before deciding a workout was
-already fetched, while Dreeve deletes what it imports. So upstream is never pointed at the watch
-folder; dreeve_ha.relay copies out of the downloads directory instead, and DREEVE_WATCH_DIR here is
-read by that relay rather than by upstream, which has no way of being told where to write.
+The two directories are split because they are kept for opposite reasons. STATE_DIR holds what must
+survive a restart - the tokens, the sync history upstream deduplicates against, the certificate it
+generates - while WATCH_DIR is Dreeve's watch folder, which Dreeve empties as it imports. Upstream
+writes each download straight into it and never looks there again, so nothing has to be copied and
+no downloaded file is kept twice.
 """
 
 from __future__ import annotations
@@ -18,30 +18,33 @@ import shlex
 from pathlib import Path
 
 DATA_DIR = Path("/data")
-DOWNLOADS_DIR = DATA_DIR / "downloads"
 STATE_DIR = DATA_DIR / "state"
 # Bound on all interfaces by upstream (app.run(host="0.0.0.0")): the TCP watchdog reaches it over the
 # container's own address, and the `ports` entry in config.yaml publishes it on the host so a browser
-# can complete the authorization.
-PORT = "8080"
+# can complete the authorization. 8085 is upstream's own default, so its documentation and this
+# add-on name the same number.
+PORT = "8085"
 # Upstream's own fallback is https://localhost:8085/callback, and any https redirect turns on a
 # self-signed certificate, so an unconfigured add-on would answer its webui link with a certificate
 # warning. This keeps the dashboard on plain HTTP; a login attempt then fails on Wahoo's own redirect
 # mismatch, which names the actual problem.
-FALLBACK_REDIRECT_URI = "http://localhost:8080/callback"
+FALLBACK_REDIRECT_URI = "http://localhost:{0}/callback".format(PORT)
 
 # A key that is not a valid shell variable name would render an export line the entrypoint cannot
 # source, taking the whole add-on down with a syntax error that names no option.
 VARIABLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-# Overriding these would break persistence and the token store (DATA_DIR), the dashboard, the
-# watchdog and the published port (PORT), or the relay's delivery target (DREEVE_WATCH_DIR).
-# WATCH_DIR is owned although nothing here exports it: it is the name a planned upstream change will
-# make upstream honour, and letting a user hand-activate that support behind the relay's back would
-# have upstream write into the folder Dreeve empties, which it then re-downloads in full every cron
-# fire. USE_HTTPS is deliberately absent: it is the documented way out when Wahoo refuses a
+# Overriding these would break persistence and the token store (DATA_DIR, STATE_DIR), the dashboard,
+# the watchdog and the published port (PORT), or delivery into Dreeve (WATCH_DIR).
+#
+# VERIFY_FILES_ON_DISK is the one a user could plausibly switch on for the reassuring name, and it
+# is the single most damaging setting here. It makes upstream confirm that an already-downloaded
+# file is still on disk before skipping it - and under Dreeve it never is, because Dreeve deletes
+# every file it imports. Every workout inside SYNC_TIME_WINDOW would then be downloaded again on
+# every cron fire, spending Wahoo's quota and re-importing the same rides, with nothing in the log
+# to say why. USE_HTTPS is deliberately absent: it is the documented way out when Wahoo refuses a
 # plain-HTTP redirect.
-OWNED = ("DATA_DIR", "PORT", "WATCH_DIR", "DREEVE_WATCH_DIR")
+OWNED = ("DATA_DIR", "PORT", "WATCH_DIR", "STATE_DIR", "VERIFY_FILES_ON_DISK")
 
 
 def build(addon_options, watch_dir):
@@ -52,11 +55,11 @@ def build(addon_options, watch_dir):
         "WAHOO_CLIENT_ID": addon_options["wahoo_client_id"],
         "DATA_DIR": str(DATA_DIR),
         "PORT": PORT,
-        # Read by dreeve_ha.relay, and deliberately not named WATCH_DIR: a planned upstream change
-        # gives that name to upstream itself, so the first bump onto such a build would have it
-        # write straight into the folder Dreeve empties - and since its deduplication asks whether
-        # the file is still on disk, it would re-download its whole window every cron fire.
-        "DREEVE_WATCH_DIR": str(watch_dir),
+        # Upstream downloads into WATCH_DIR and deduplicates against the history in STATE_DIR, so
+        # Dreeve is free to delete what it imports without anything being fetched twice.
+        "WATCH_DIR": str(watch_dir),
+        "STATE_DIR": str(STATE_DIR),
+        "LOG_LEVEL": addon_options["log_level"],
         "WAHOO_REDIRECT_URI": addon_options["redirect_uri"] or FALLBACK_REDIRECT_URI,
     }
 

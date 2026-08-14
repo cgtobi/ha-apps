@@ -23,6 +23,7 @@ class ReadTest(unittest.TestCase):
         self.assertEqual(result["wahoo_client_id"], "")
         self.assertEqual(result["sync_time_window"], "1_week")
         self.assertEqual(result["sync_cron"], "0 * * * *")
+        self.assertEqual(result["log_level"], "info")
         self.assertEqual(result["extra_env"], [])
 
     def test_strips_surrounding_whitespace(self):

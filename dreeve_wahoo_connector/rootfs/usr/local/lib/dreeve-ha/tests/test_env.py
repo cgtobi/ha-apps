@@ -18,19 +18,19 @@ class BuildTest(unittest.TestCase):
         built, warnings = env.build(make_options(), Path("/addon_configs/x/watch"))
 
         self.assertEqual(built["DATA_DIR"], "/data")
-        self.assertEqual(built["PORT"], "8080")
-        # Read by dreeve_ha.relay, not by upstream: upstream has no way to be told where to write.
-        self.assertEqual(built["DREEVE_WATCH_DIR"], "/addon_configs/x/watch")
+        self.assertEqual(built["PORT"], "8085")
+        # Upstream downloads straight into Dreeve's watch folder now, so there is nothing between
+        # the two: no copy, no ledger, no second directory that keeps growing.
+        self.assertEqual(built["WATCH_DIR"], "/addon_configs/x/watch")
+        # Tokens, sync history and the self-signed certificate live here rather than under
+        # /data/config, so everything the add-on must keep across restarts is in one directory.
+        self.assertEqual(built["STATE_DIR"], "/data/state")
         self.assertEqual(warnings, [])
 
-    def test_never_exports_watch_dir_itself(self):
-        # WATCH_DIR is the name a planned upstream change will make upstream honour. Exporting it
-        # would, on the first bump onto such a build, have upstream write straight into the folder
-        # Dreeve empties - and upstream's deduplication asks whether the file is still on disk, so
-        # it would re-download its whole window every cron fire while the add-on looked healthy.
-        built, _ = env.build(make_options(), Path("/addon_configs/x/watch"))
+    def test_exports_the_log_level(self):
+        built, _ = env.build(make_options(log_level="debug"), Path("/watch"))
 
-        self.assertNotIn("WATCH_DIR", built)
+        self.assertEqual(built["LOG_LEVEL"], "debug")
 
     def test_passes_the_client_credentials_and_schedule_through(self):
         built, _ = env.build(
@@ -72,7 +72,7 @@ class BuildTest(unittest.TestCase):
         # link with a certificate warning instead of a dashboard.
         built, _ = env.build(make_options(redirect_uri=""), Path("/watch"))
 
-        self.assertEqual(built["WAHOO_REDIRECT_URI"], "http://localhost:8080/callback")
+        self.assertEqual(built["WAHOO_REDIRECT_URI"], "http://localhost:8085/callback")
 
     def test_blank_optional_values_are_left_out(self):
         built, _ = env.build(
@@ -111,6 +111,18 @@ class ExtraEnvTest(unittest.TestCase):
 
                 self.assertNotEqual(built.get(owned), "/somewhere")
                 self.assertTrue(any(owned in warning for warning in warnings))
+
+    def test_refuses_to_let_anyone_switch_the_disk_check_back_on(self):
+        # VERIFY_FILES_ON_DISK looks like a safety net and is the opposite of one here: it makes
+        # upstream re-check that each already-downloaded file is still on disk, and Dreeve deletes
+        # every file it imports - so every workout in SYNC_TIME_WINDOW would be fetched again on
+        # every cron fire, against Wahoo's quota, with the add-on reporting healthy throughout.
+        built, warnings = env.build(
+            make_options(extra_env=["VERIFY_FILES_ON_DISK=true"]), Path("/watch")
+        )
+
+        self.assertNotIn("VERIFY_FILES_ON_DISK", built)
+        self.assertTrue(any("VERIFY_FILES_ON_DISK" in warning for warning in warnings))
 
     def test_warns_about_entries_that_are_not_key_value(self):
         built, warnings = env.build(make_options(extra_env=["nonsense", "=1"]), Path("/watch"))

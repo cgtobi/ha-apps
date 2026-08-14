@@ -1,6 +1,6 @@
 #!/bin/sh
-# Add-on entrypoint. Prepares the connector's environment, starts the relay and the status logger,
-# then runs the upstream app.
+# Add-on entrypoint. Prepares the connector's environment, starts the status logger, then runs the
+# upstream app.
 #
 # There is no login step: Wahoo authorization is an OAuth redirect the connector's own dashboard
 # serves on PORT. Until someone completes it, the connector runs, reports authenticated=false and
@@ -30,9 +30,9 @@ set -a
 . "$ENV_FILE"
 set +a
 
-# The relay copies what upstream downloaded into Dreeve's watch folder; upstream cannot be pointed at
-# that folder directly, because it re-downloads anything Dreeve has deleted. See dreeve_ha/relay.py.
-PYTHONPATH="$ADDON_LIB" "$PYTHON" -m dreeve_ha.relay &
+# Nothing delivers files here: upstream downloads straight into WATCH_DIR, which the sourced
+# environment above points at Dreeve's watch folder. This background loop only reports what the
+# connector says about itself.
 PYTHONPATH="$ADDON_LIB" "$PYTHON" -m dreeve_ha.statusloop &
 
 log "Starting the Wahoo connector"

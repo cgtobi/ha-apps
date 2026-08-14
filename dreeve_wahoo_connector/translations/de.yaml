@@ -35,9 +35,12 @@ configuration:
     description: >-
       Leer lassen, um den Überwachungsordner des Dreeve-Add-ons automatisch zu finden. Nur setzen,
       wenn dabei mehrere Kandidaten gefunden werden.
+  log_level:
+    name: Protokollstufe
+    description: Wie viel der Connector ins Add-on-Log schreibt.
   extra_env:
     name: Zusätzliche Einstellungen
     description: >-
       Weitere Connector-Einstellungen als KEY=VALUE, zum Beispiel WAHOO_SCOPES=user_read
-      workouts_read oder USE_HTTPS=true. DATA_DIR, PORT, WATCH_DIR und DREEVE_WATCH_DIR verwaltet das
-      Add-on selbst und kann hier nicht gesetzt werden.
+      workouts_read oder USE_HTTPS=true. DATA_DIR, PORT, WATCH_DIR, STATE_DIR und
+      VERIFY_FILES_ON_DISK verwaltet das Add-on selbst und können hier nicht gesetzt werden.

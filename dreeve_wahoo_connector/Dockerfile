@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-wahoo-connector:sha-eb2e511
+ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-wahoo-connector:sha-4ed0b56
 FROM ${BUILD_FROM}
 
 LABEL \
@@ -35,7 +35,7 @@ RUN chmod +x /usr/local/bin/ha-start.sh
 # exactly while the app is listening, indifferent to whether anyone has authorized. The port is
 # hardcoded because PORT is add-on-owned (see dreeve_ha/env.py) and a HEALTHCHECK cannot read it.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD ["/usr/local/bin/python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8080), 3).close()"]
+    CMD ["/usr/local/bin/python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8085), 3).close()"]
 
 # Replaces the upstream CMD, which ha-start.sh runs itself once the environment is ready.
 ENTRYPOINT ["/usr/local/bin/ha-start.sh"]

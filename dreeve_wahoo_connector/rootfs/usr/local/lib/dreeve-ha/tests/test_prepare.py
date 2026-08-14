@@ -25,7 +25,7 @@ class RunTest(unittest.TestCase):
             options_file=self.options_file,
             env_file=self.env_file,
             addon_configs=self.addon_configs,
-            data_dirs=[self.root / "downloads", self.root / "state"],
+            data_dirs=[self.root / "state"],
             log=self.logged.append,
         )
 
@@ -46,7 +46,7 @@ class RunTest(unittest.TestCase):
         self.assertIn("export WAHOO_CLIENT_SECRET='se cret'\n", content)
         self.assertIn("export WAHOO_REDIRECT_URI=http://ha.local:8085/callback\n", content)
         self.assertIn(
-            "export DREEVE_WATCH_DIR={0}\n".format(
+            "export WATCH_DIR={0}\n".format(
                 self.addon_configs / "local_statistics_for_strava" / "watch"
             ),
             content,
@@ -59,14 +59,14 @@ class RunTest(unittest.TestCase):
 
         self.assertEqual(self.env_file.stat().st_mode & 0o777, 0o600)
 
-    def test_creates_the_persistent_directories(self):
-        # /data/downloads is upstream's own, and the relay's source; /data/state holds the relay
-        # ledger.
+    def test_creates_the_persistent_directory(self):
+        # /data/state holds the tokens, the sync history and the certificate upstream generates.
+        # Upstream would create it itself, but only on its first read - and a failure there is a
+        # traceback out of a background thread rather than a line naming the add-on.
         self.write_options({"wahoo_client_id": "abc-123"})
 
         self.run_prepare()
 
-        self.assertTrue((self.root / "downloads").is_dir())
         self.assertTrue((self.root / "state").is_dir())
 
     def test_reports_extra_env_warnings(self):

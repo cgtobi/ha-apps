@@ -1,4 +1,5 @@
 import importlib
+import logging
 import ssl
 import unittest
 
@@ -150,6 +151,19 @@ class ReadStatusTest(unittest.TestCase):
         )
 
         self.assertIsNone(payload)
+
+
+class LevelTest(unittest.TestCase):
+    def test_reads_the_addons_log_level(self):
+        self.assertEqual(statusloop.level({"LOG_LEVEL": "warning"}), logging.WARNING)
+        self.assertEqual(statusloop.level({"LOG_LEVEL": " DEBUG "}), logging.DEBUG)
+
+    def test_falls_back_to_info(self):
+        # Unset, blank or nonsense: this loop is the only sign that a sync is progressing, so an
+        # unreadable value must not silence it.
+        for environ in ({}, {"LOG_LEVEL": ""}, {"LOG_LEVEL": "chatty"}):
+            with self.subTest(environ=environ):
+                self.assertEqual(statusloop.level(environ), logging.INFO)
 
 
 class PollOnceTest(unittest.TestCase):

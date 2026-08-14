@@ -11,9 +11,11 @@ from pathlib import Path
 from dreeve_ha import env, options, secretfile, watchdir
 
 ENV_FILE = Path("/run/dreeve-ha.env")
-# /data/downloads is upstream's own directory and the relay's source; /data/state holds the relay's
-# ledger. Both are created here so the relay's first pass has somewhere to look and somewhere to write.
-DATA_DIRS = (env.DOWNLOADS_DIR, env.STATE_DIR)
+# /data/state carries everything that has to outlive a restart: the Wahoo tokens, the sync history
+# upstream deduplicates against, and the certificate it generates for an https redirect. Upstream
+# creates it too, but only when it first reads there - and a failure that late is a traceback from a
+# background thread rather than a line from the add-on's own startup.
+DATA_DIRS = (env.STATE_DIR,)
 
 
 def run(

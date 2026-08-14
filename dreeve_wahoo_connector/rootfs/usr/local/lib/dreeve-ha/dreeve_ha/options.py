@@ -8,10 +8,6 @@ from pathlib import Path
 OPTIONS_FILE = Path("/data/options.json")
 
 # The defaults also define the shape: a list default means the option is a list of strings.
-#
-# There is no log_level: upstream calls logging.basicConfig(level=logging.INFO) with no environment
-# override, so the option would promise something nothing reads. It arrives when upstream's LOG_LEVEL
-# does.
 DEFAULTS = {
     "wahoo_client_id": "",
     "wahoo_client_secret": "",
@@ -20,6 +16,7 @@ DEFAULTS = {
     "sync_cron": "0 * * * *",
     "tz": "",
     "watch_dir": "",
+    "log_level": "info",
     "extra_env": [],
 }
 

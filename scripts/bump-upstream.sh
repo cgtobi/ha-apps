@@ -51,6 +51,7 @@ usage() {
   echo "  $0 [addon]              (every add-on when no name is given)"
   echo "Examples:"
   echo "  $0 bump dreeve v5.1.0"
+  echo "  $0 bump dreeve_wahoo_connector sha-4ed0b56   (upstreams that publish no releases)"
   echo "  $0 bump dreeve_garmin_connector"
   echo "  $0 check dreeve_garmin_connector"
   echo "  $0"
@@ -201,6 +202,21 @@ $file"
 run_bump() {
   version="$1"
 
+  # Nothing further down rejects a version that is empty or not a legal image tag, and every write
+  # here is destructive: the pin becomes '<repo>:', the changelog gains a release line naming no
+  # version at all, and the add-on version is patch-bumped for that non-release. Refuse before the
+  # first file is touched. (Charset per the OCI tag grammar.)
+  case "$version" in
+    '')
+      echo "ERROR: refusing to bump ${ADDON}: empty upstream version" >&2
+      exit 1
+      ;;
+    *[!0-9A-Za-z._-]*)
+      echo "ERROR: refusing to bump ${ADDON}: '${version}' is not a usable image tag" >&2
+      exit 1
+      ;;
+  esac
+
   IMAGE_REF="${IMAGE_REPO}:${version}"
   CHANGED_FILES=""
   LAST_BUMP_CHANGED="0"
@@ -281,6 +297,14 @@ normalize_version() {
   # Accepts either shape on the command line and renders the one this upstream actually publishes,
   # so `bump dreeve_polar_connector v0.2.0` still pins the existing image tag 0.2.0.
   input="$1"
+  case "$input" in
+    # A commit tag has no version shape for a release prefix to apply to: 'v' + sha-4ed0b56 names no
+    # image anywhere. Pass it through as typed.
+    sha-*)
+      echo "$input"
+      return
+      ;;
+  esac
   echo "${TAG_PREFIX}${input#v}"
 }
 
@@ -390,8 +414,12 @@ fi
 if [ -n "$TAG" ]; then
   case "$TAG" in
     v[0-9]*.[0-9]*.[0-9]*|[0-9]*.[0-9]*.[0-9]*) ;;
+    # Upstreams that publish no releases are pinned to a commit image tag instead (dreeve-wahoo-
+    # connector ships only 'latest' and 'sha-<short>'). Its .upstream-repo documents exactly this
+    # command, so refusing the shape here made the documented bump impossible and the pin hand-made.
+    sha-[0-9a-f][0-9a-f]*) ;;
     *)
-      echo "ERROR: '${TAG}' is neither a known add-on nor a version tag (vX.Y.Z)" >&2
+      echo "ERROR: '${TAG}' is neither a known add-on nor a version tag (vX.Y.Z or sha-<hex>)" >&2
       exit 1
       ;;
   esac

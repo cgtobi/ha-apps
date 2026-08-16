@@ -131,6 +131,32 @@ case "$output" in
   *) pass "the commit subject does not name the directory" ;;
 esac
 
+# 4d. An upstream that publishes no releases is pinned to a commit image tag. dreeve_wahoo_connector
+# ships only 'latest' and 'sha-<short>', and its .upstream-repo documents this exact command; before
+# it was accepted here, every wahoo pin had to be written by hand.
+addon="${REPO}/dreeve_wahoo_connector"
+(cd "$REPO" && ./scripts/bump-upstream.sh bump dreeve_wahoo_connector sha-9abcdef >/dev/null)
+[ "$(cat "${addon}/.upstream-version")" = "sha-9abcdef" ] \
+  && pass "a commit-tagged upstream records the sha tag" || fail ".upstream-version does not hold the sha tag"
+grep -q 'ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-wahoo-connector:sha-9abcdef$' "${addon}/Dockerfile" \
+  && pass "a commit-tagged upstream is pinned to the sha tag" || fail "Dockerfile not pinned to the sha tag"
+grep -q '^- feat: bump Wahoo connector to sha-9abcdef' "${addon}/CHANGELOG.md" \
+  && pass "changelog entry written for the sha tag" || fail "changelog entry missing for the sha tag"
+
+# 4e. A tag of no recognisable shape is refused, and refused before anything is written - an empty or
+# malformed version reaching the writes leaves a '<repo>:' pin and a changelog entry naming no
+# release, which is how a wahoo bump once had to be undone by hand.
+before_pin="$(cat "${addon}/.upstream-version")"
+for bad_tag in 'sha-' 'nonsense' 'sha-zzzz'; do
+  if (cd "$REPO" && ./scripts/bump-upstream.sh bump dreeve_wahoo_connector "$bad_tag" >/dev/null 2>&1); then
+    fail "bump accepted the malformed tag '${bad_tag}'"
+  else
+    pass "bump refuses the malformed tag '${bad_tag}'"
+  fi
+done
+[ "$(cat "${addon}/.upstream-version")" = "$before_pin" ] \
+  && pass "a refused bump leaves the pin untouched" || fail "a refused bump rewrote the pin"
+
 # 5. The bumped tree is self-consistent again.
 if (cd "$REPO" && ./scripts/check-release-consistency.sh >/dev/null 2>&1); then
   pass "the bumped tree is consistent"

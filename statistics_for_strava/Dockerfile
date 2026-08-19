@@ -14,11 +14,16 @@ LABEL \
 
 RUN apk add --no-cache jq
 
-COPY rootfs /
-
-# Fail the build when an overridden upstream file references a class upstream has
-# renamed or moved (at runtime that only shows up as an opaque init failure).
-RUN sh /usr/local/bin/sfs-verify-overrides.sh
+# Staged, not installed yet: sfs-verify-overrides.sh compares each overridden
+# file against the upstream copy it is meant to shadow, which is only possible
+# while both exist. It fails the build when an override names a class upstream
+# has renamed (an opaque init failure at runtime) or is a stale copy that drops
+# something upstream added (silently missing features at runtime).
+COPY rootfs /tmp/rootfs
+RUN set -eu; \
+    sh /tmp/rootfs/usr/local/bin/sfs-verify-overrides.sh /tmp/rootfs; \
+    cp -a /tmp/rootfs/. /; \
+    rm -rf /tmp/rootfs
 
 # The upstream ENTRYPOINT (added in v4.8.8) runs
 #   flock /var/www/storage/database/migrate.lock php bin/console app:db:migrate

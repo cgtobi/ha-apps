@@ -6,9 +6,12 @@ namespace App\Infrastructure\Twig;
 
 use App\Application\AppUrl;
 use App\Domain\Activity\Activity;
+use App\Domain\Activity\ActivityFragmentPath;
 use App\Domain\Activity\SportType\SportType;
 use App\Domain\Image\ImageOrientation;
 use App\Domain\Segment\Segment;
+use App\Domain\Segment\SegmentFragmentPath;
+use App\Infrastructure\ValueObject\String\FilteredUrl;
 use App\Infrastructure\ValueObject\String\RelativeUrl;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Twig\Attribute\AsTwigFilter;
@@ -17,11 +20,11 @@ use Twig\Attribute\AsTwigFunction;
 /*
  * OVERRIDDEN UPSTREAM FILE — resync on every image bump.
  *
- * Same as upstream except toRelativeUrl() re-anchors the result on the current
- * request's base URL (see prefixWithRequestBaseUrl below). Keep every other
- * method byte-identical to upstream: they carry the URLs the SPA fetches, and a
- * stale copy silently points the app at routes that no longer exist (v5.2.0 moved
- * activity/segment modals from "<id>.html" to "api/fragment/page/...").
+ * Same as upstream except relativeUrl()/filteredUrl() re-anchor their result on
+ * the current request's base URL (see prefixWithRequestBaseUrl below). Keep every
+ * other method byte-identical to upstream: they carry the URLs the SPA fetches,
+ * and a stale copy silently drops Twig functions templates call (v5.2.3 added
+ * filteredUrl) or points the app at routes that no longer exist.
  *
  * relativeUrl() builds root-absolute URLs from APP_URL's base path. Under Home
  * Assistant ingress the base path is not in APP_URL at all: it is a per-session
@@ -35,8 +38,8 @@ use Twig\Attribute\AsTwigFunction;
  * calls are not, and the browser resolves them against the Home Assistant host
  * root instead of the ingress base. That covers the admin "Return to app" link,
  * every top-nav href (which is also what the SPA router matches routes against),
- * the js-dist-url meta the webpack public path is read from, and the
- * data-model-content-url fragment URLs behind activity/segment modals.
+ * the js-dist-url meta the webpack public path is read from, and the activity /
+ * segment fragment links.
  *
  * The prefix ends up in rendered HTML that the v5.2.0 render cache stores, so
  * CacheableRenderer is overridden as well to key cache entries per base path.
@@ -62,6 +65,17 @@ final readonly class UrlTwigExtension
     }
 
     /**
+     * @param array<string, mixed> $filters
+     */
+    #[AsTwigFunction('filteredUrl')]
+    public function toFilteredUrl(string $path, array $filters): string
+    {
+        return $this->prefixWithRequestBaseUrl(
+            FilteredUrl::from($path, $filters, $this->appUrl)->toRelativeUrl()
+        );
+    }
+
+    /**
      * Prepend the current request's base URL (the reverse-proxy prefix from
      * X-Forwarded-Prefix, empty on direct :8080 access and on CLI) unless the
      * URL already carries it, which is the case for the many call sites that
@@ -70,22 +84,11 @@ final readonly class UrlTwigExtension
     private function prefixWithRequestBaseUrl(string $url): string
     {
         $baseUrl = rtrim($this->requestStack?->getCurrentRequest()?->getBaseUrl() ?? '', '/');
-        if ('' === $baseUrl) {
-            return $url;
-        }
-        if ($url === $baseUrl || str_starts_with($url, $baseUrl.'/')) {
+        if ('' === $baseUrl || $url === $baseUrl || str_starts_with($url, $baseUrl.'/')) {
             return $url;
         }
 
         return $baseUrl.$url;
-    }
-
-    #[AsTwigFunction('securedImageUrl')]
-    public function securedImageUrl(string $imageUrl): string
-    {
-        $pathRelativeToFiles = ltrim((string) preg_replace('#^/?files/#', '', $imageUrl), '/');
-
-        return $this->toRelativeUrl('secured-image/'.$pathRelativeToFiles);
     }
 
     #[AsTwigFunction('placeholderImage')]
@@ -118,8 +121,8 @@ final readonly class UrlTwigExtension
         $activityTitle = $activity->getName();
 
         return sprintf(
-            '<a href="#" data-model-content-url="%s" class="flex items-center gap-x-1 font-medium text-blue-600 hover:underline" rel="nofollow">%s<span class="%s">%s</span></a>',
-            $this->toRelativeUrl('api/fragment/page/activity/'.$activity->getId()),
+            '<a href="%s" data-router-link class="flex items-center gap-x-1 font-medium text-blue-600 hover:underline">%s<span class="%s">%s</span></a>',
+            $this->toRelativeUrl(ActivityFragmentPath::for($activity->getId())),
             $activityIcon,
             $truncate ? 'truncate' : '',
             $ellipses ? $this->stringTwigExtension->doEllipses($activityTitle, $ellipses) : $activityTitle
@@ -140,8 +143,8 @@ final readonly class UrlTwigExtension
         $segmentTitle = $segment->getName();
 
         return sprintf(
-            '<a href="#" data-model-content-url="%s" class="flex items-center gap-x-1 font-medium text-blue-600 hover:underline" rel="nofollow">%s<span class="truncate">%s</span></a>',
-            $this->toRelativeUrl('api/fragment/page/segment/'.$segment->getId()),
+            '<a href="%s" data-router-link class="flex items-center gap-x-1 font-medium text-blue-600 hover:underline">%s<span class="truncate">%s</span></a>',
+            $this->toRelativeUrl(SegmentFragmentPath::for($segment->getId())),
             $segmentIcon,
             $this->stringTwigExtension->doEllipses((string) $segmentTitle, 50)
         );

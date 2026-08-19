@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.25
+
+- fix: pages render again. Two overridden upstream files were stale copies, and our copies win over the image's: `IndexPage.php` predated the `window.dreeve.pageFragment` constants Dreeve v5.2.3 added, so the SPA router threw while building every content URL and left only the menu on screen; `UrlTwigExtension.php` predated the `filteredUrl` Twig function, which several page templates call. Both resynced against v5.2.3.
+- chore: the image build now compares every overridden PHP file against the upstream file it shadows and fails when our copy has dropped something upstream added, so a stale override cannot silently ship again.
+
 ## 0.5.24
 
 - fix: the add-on builds again. Dreeve v5.2.3 base-path-proofs the chart drill-down routes itself, so the build-time patch of `app.min.js` no longer found its target and failed the build by design. Patch removed; the upstream fix is equivalent.

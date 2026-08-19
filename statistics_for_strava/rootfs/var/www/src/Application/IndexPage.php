@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application;
 
+use App\Controller\Api\ApiFragmentRequestHandler;
 use App\Domain\Activity\ActivityIdRepository;
 use App\Domain\Activity\BestEffort\ActivityBestEffortRepository;
 use App\Domain\Activity\Image\ImageRepository;
@@ -14,7 +15,9 @@ use App\Infrastructure\Cache\Cacheability;
 use App\Infrastructure\Cache\Cacheable;
 use App\Infrastructure\Cache\Tag\CacheTags;
 use App\Infrastructure\Cache\Tag\RootCacheTag;
+use App\Infrastructure\Http\Fragment\FragmentType;
 use App\Infrastructure\Serialization\Json;
+use App\Infrastructure\ValueObject\String\RelativeUrl;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Intl\Countries;
 use Symfony\Component\Translation\LocaleSwitcher;
@@ -46,6 +49,11 @@ use Twig\Environment;
  * "No router link found for ..." and rendered nothing — which is what the admin
  * panel's "Return to app" link (href="/") landed on. The page name came out as
  * "api-hassio_ingress-<token>-heatmap" for the same reason.
+ *
+ * pageFragment.baseUrl is prefixed with the same request base URL. The router
+ * builds every content fetch from it (`_determineContentUrl`), and upstream
+ * derives it from APP_URL, which under ingress means the browser would fetch
+ * fragments from the Home Assistant host root instead of the ingress session.
  *
  * The rendered page is cached, so CacheableRenderer is overridden to key cache
  * entries per base path; otherwise one session's ingress token would be served
@@ -113,6 +121,12 @@ final readonly class IndexPage implements Cacheable
                     'elevationSymbol' => $unitSystem->elevationSymbol(),
                 ],
                 'leafletConfig' => $this->settingsRepository->maps()->getLeafletConfig(),
+                'pageFragment' => [
+                    'baseUrl' => $this->prefixWithRequestBaseUrl(
+                        RelativeUrl::from(ApiFragmentRequestHandler::PATH_PREFIX.'/'.FragmentType::PAGE->value, $this->appUrl)->toRelativeUrl()
+                    ),
+                    'pathPattern' => ApiFragmentRequestHandler::PATH_REQUIREMENT,
+                ],
             ]),
         ]);
     }
@@ -131,5 +145,19 @@ final readonly class IndexPage implements Cacheable
         }
 
         return $this->appUrl->getBasePath() ?? '';
+    }
+
+    /**
+     * Prepend the current request's base URL (empty on direct :8080 access and
+     * on CLI) unless the URL already carries it.
+     */
+    private function prefixWithRequestBaseUrl(string $url): string
+    {
+        $baseUrl = rtrim($this->requestStack?->getCurrentRequest()?->getBaseUrl() ?? '', '/');
+        if ('' === $baseUrl || $url === $baseUrl || str_starts_with($url, $baseUrl.'/')) {
+            return $url;
+        }
+
+        return $baseUrl.$url;
     }
 }

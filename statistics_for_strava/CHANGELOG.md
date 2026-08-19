@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.24
+
+- fix: the add-on builds again. Dreeve v5.2.3 base-path-proofs the chart drill-down routes itself, so the build-time patch of `app.min.js` no longer found its target and failed the build by design. Patch removed; the upstream fix is equivalent.
+
 ## 0.5.23
 
 - feat: bump Dreeve to v5.2.3 [Changelog](https://docs.dreeve.app/#/changelog)

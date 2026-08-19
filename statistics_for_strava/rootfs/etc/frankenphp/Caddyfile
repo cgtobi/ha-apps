@@ -46,12 +46,6 @@
 		php
 	}
 
-	# Serve manifest from public root.
-	handle /manifest.json {
-		root * /var/www/public
-		file_server
-	}
-
 	# Disable Topics tracking if not enabled explicitly: https://github.com/jkarlin/topics
 	header {
 		Cache-Control "no-cache, no-store, must-revalidate"
@@ -64,17 +58,23 @@
 	# pre-built HTML entirely and renders every page (including "/") and every
 	# fragment through Symfony, so anything not matched below must fall through to
 	# the front controller at the bottom of this file.
-	handle /css/* {
-		root * /var/www/public
-		file_server
-	}
 
-	handle /js/* {
-		root * /var/www/public
-		file_server
-	}
-
-	handle /libraries/* {
+	# Every URL under /css, /js and /libraries carries a ?v<app-version> query:
+	# the stylesheet and library tags are rendered with it, and app.min.js wraps
+	# webpack's chunk URL builder to append it to lazy chunks too. So they are
+	# safe to cache and self-bust on an upstream bump.
+	#
+	# Upstream sends "no-cache, no-store, must-revalidate" for everything except
+	# /files/*, which means a full page load refetches the ~176kB tailwind bundle
+	# before it can style anything. The browser paints the unstyled shell in the
+	# meantime — most visibly the logo, an SVG sized only by a Tailwind class, at
+	# its intrinsic size. That is the flash when returning to the app from /admin,
+	# which is a full page load rather than an SPA navigation.
+	@versionedStatic path /css/* /js/* /libraries/*
+	handle @versionedStatic {
+		header {
+			Cache-Control "public, max-age=86400"
+		}
 		root * /var/www/public
 		file_server
 	}

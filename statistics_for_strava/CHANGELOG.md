@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.26
+
+- fix: no more flash of a giant logo on a full page load (returning to the app from the admin panel, for example). Upstream marks everything outside `/files/` as `no-store`, so the browser refetched the ~176kB stylesheet before it could style anything and painted the unstyled page meanwhile. Everything under `/css`, `/js` and `/libraries` is version-stamped, so the add-on now lets the browser cache it for a day; an upstream bump changes the stamp and busts the cache.
+- fix: `/manifest.json` is served again instead of returning 404. The add-on's web server config still served it as a static file from a pre-v5 layout, where it no longer exists — it is a rendered route now.
+
 ## 0.5.25
 
 - fix: pages render again. Two overridden upstream files were stale copies, and our copies win over the image's: `IndexPage.php` predated the `window.dreeve.pageFragment` constants Dreeve v5.2.3 added, so the SPA router threw while building every content URL and left only the menu on screen; `UrlTwigExtension.php` predated the `filteredUrl` Twig function, which several page templates call. Both resynced against v5.2.3.

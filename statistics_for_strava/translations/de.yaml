@@ -36,6 +36,10 @@ configuration:
     name: API-Schlüssel
     description: >-
       Bearer-Token für die `/api/v1`-HTTP-API der App (Upload von Aktivitäten, genutzt von GadgetBridge). Leer lassen, um die API geschlossen zu halten; jede Anfrage wird dann abgelehnt. Einen Schlüssel erzeugst du im Admin-Panel unter Einstellungen, Sicherheit. Über Ingress ist die API nicht erreichbar, dafür muss der Port `8080/tcp` freigegeben sein.
+  trust_forwarded_headers:
+    name: Forwarded-Header am Direktport vertrauen
+    description: >-
+      Legt fest, ob `X-Forwarded-*`-Header am direkten Port `8080/tcp` ausgewertet werden. Aus lassen, außer der Port liegt hinter deinem eigenen Reverse-Proxy mit TLS-Terminierung; ist der Port im LAN erreichbar, kann sonst jeder Client dort bestimmen, wohin der Admin-Login weiterleitet. Ingress ist davon nicht betroffen.
   expose_share:
     name: Datei-Import-Verzeichnis freigeben
     description: >-

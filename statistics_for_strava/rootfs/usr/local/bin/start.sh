@@ -66,6 +66,20 @@ if [ -f "$OPTIONS_FILE" ]; then
   export IMPORT_MODE="$(jq -r '.import_mode // "stravaApi"' "$OPTIONS_FILE")"
   export ADMIN_USERNAME="$(jq -r '.admin_username // "admin"' "$OPTIONS_FILE")"
 
+  # Which Caddy snippet the published :8080 listener imports for the client's
+  # X-Forwarded-* headers. Default (option false or absent) strips them: Symfony
+  # trusts any private-range peer, and a LAN client hitting the exposed port is
+  # one, so an unstripped X-Forwarded-Host would let it redirect the admin login
+  # to a host of its choosing. Users who put their own reverse proxy in front of
+  # :8080 set the option to keep the headers, so the external scheme and host
+  # survive. The ingress listener is a separate port and is unaffected either way.
+  if [ "$(jq -r '.trust_forwarded_headers // false' "$OPTIONS_FILE")" = "true" ]; then
+    export SFS_FORWARDED_MODE="trust_forwarded"
+    log "Direct port :8080 trusts client X-Forwarded-* headers (trust_forwarded_headers: true)"
+  else
+    export SFS_FORWARDED_MODE="strip_forwarded"
+  fi
+
   # Bearer token for the upstream /api/v1 endpoints (v5.3.0, GadgetBridge
   # uploads). Only exported when set: an empty DREEVE_API_KEY is what upstream
   # defaults to, and the token handler rejects every request while it is empty,

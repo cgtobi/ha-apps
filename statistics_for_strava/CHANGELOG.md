@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.28
+
+- fix: a client on your network could tell the add-on how to build its URLs, if you expose the `8080/tcp` port. Ingress and that port are now served by two separate listeners: the ingress one is reachable only by the Home Assistant supervisor, the published one never accepts ingress headers at all. Previously both shared a port and the add-on told them apart by a request header — which a client could simply send, choosing its own base path, or spoofing `X-Forwarded-Host` so the admin login redirected to a host of its choosing. Ingress users need do nothing; the Web UI stays on port 8080.
+- feat: new `trust_forwarded_headers` option, off by default. **If you reach the add-on through your own reverse proxy on `8080/tcp`, turn this on after upgrading** — otherwise the app no longer sees the original scheme and host, and redirects (the admin login among them) come back as `http://` pointing at the add-on's internal host. Everyone else should leave it off. See DOCS.md.
+
 ## 0.5.27
 
 - feat: bump Dreeve to v5.3.0 [Changelog](https://docs.dreeve.app/#/changelog)

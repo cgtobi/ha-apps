@@ -1,5 +1,5 @@
 name: "Dreeve"
-version: "0.5.27"
+version: "0.5.28"
 slug: "statistics_for_strava"
 description: "Dashboard for your sports & fitness data"
 url: "https://github.com/dreeveapp/dreeve"
@@ -10,7 +10,11 @@ startup: services
 boot: auto
 init: false
 ingress: true
-ingress_port: 8080
+# Internal only — the supervisor connects here and nothing else can, because this
+# port is deliberately absent from `ports` below. That is the trust boundary the
+# Caddyfile relies on: X-Ingress-Path is honored on this listener and stripped on
+# the published one. Changing it is invisible to users; the Web UI stays on 8080.
+ingress_port: 8099
 ingress_stream: true
 panel_icon: "mdi:chart-line"
 panel_title: "Dreeve"
@@ -44,6 +48,7 @@ options:
   admin_username: "admin"
   admin_password: ""
   dreeve_api_key: ""
+  trust_forwarded_headers: false
   expose_share: false
   caddy_log_level: "ERROR"
 
@@ -57,5 +62,6 @@ schema:
   admin_username: str
   admin_password: password
   dreeve_api_key: password?
+  trust_forwarded_headers: bool
   expose_share: bool
   caddy_log_level: "list(DEBUG|INFO|WARN|ERROR)"

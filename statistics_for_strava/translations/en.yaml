@@ -36,6 +36,10 @@ configuration:
     name: API key
     description: >-
       Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Leave empty to keep the API closed; every request is then rejected. Generate a key in the admin panel under Settings, Security. The API is not reachable through ingress, it needs port `8080/tcp` exposed.
+  trust_forwarded_headers:
+    name: Trust forwarded headers on the direct port
+    description: >-
+      Whether `X-Forwarded-*` headers are believed on the direct `8080/tcp` port. Leave off unless that port sits behind your own reverse proxy terminating TLS; turning it on where the port is reachable from the LAN lets any client there choose the host the admin login redirects to. Ingress is unaffected.
   expose_share:
     name: Expose file-import watch directory
     description: >-

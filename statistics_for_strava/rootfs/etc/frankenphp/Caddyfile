@@ -28,28 +28,13 @@
 	}
 }
 
-:8080 {
+# The shared site config: everything that is identical on both listeners below.
+# Kept in a snippet so the ingress listener and the published listener can never
+# drift apart — the only difference between them is how forwarded headers are
+# handled, which is the point of having two.
+(app) {
 	root /var/www/public
 	encode zstd br gzip
-
-	# HA ingress support: the supervisor proxy strips the
-	# /api/hassio_ingress/<token> prefix and forwards it as X-Ingress-Path.
-	# Map it to X-Forwarded-Prefix so Symfony (which trusts the private-range
-	# proxy, see config/packages/framework.yaml) generates redirects and
-	# router/asset URLs under the ingress base path. Guarded so direct :8080
-	# access (no ingress header) never receives a prefix.
-	#
-	# The app only ever sees an X-Forwarded-Prefix we set ourselves. When there is
-	# no ingress request, strip any client-supplied value (prevents spoofing on an
-	# exposed :8080); when HA's X-Ingress-Path is present, set the prefix from it
-	# (this replaces any client-supplied value). The two are mutually exclusive by
-	# matcher so their order never conflicts — a single unconditional strip plus a
-	# conditional set would not work, because Caddy's headers handler applies
-	# deletions after sets and would clobber our value on legit ingress requests.
-	@noIngressPath not header X-Ingress-Path *
-	request_header @noIngressPath -X-Forwarded-Prefix
-	@hasIngressPath header X-Ingress-Path *
-	request_header @hasIngressPath X-Forwarded-Prefix {header.X-Ingress-Path}
 
 	# Lightweight health endpoint for HA watchdog checks.
 	handle /healthz {
@@ -159,4 +144,65 @@
 	file_server {
 		hide *.php *.yaml *.yml
 	}
+}
+
+# Forwarded headers a client sent us on the PUBLISHED port. Stripped by default:
+# Symfony trusts any private-range peer (see config/packages/zz-ha-ingress.yaml),
+# and a LAN client reaching :8080 directly is exactly that, so without this it can
+# assert whatever it likes — a spoofed X-Forwarded-Host redirects the admin login
+# to an attacker's host, and a spoofed X-Forwarded-For walks past ADMIN_ALLOWED_IPS.
+(strip_forwarded) {
+	request_header -X-Forwarded-For
+	request_header -X-Forwarded-Host
+	request_header -X-Forwarded-Proto
+	request_header -X-Forwarded-Port
+}
+
+# The opt-in counterpart (trust_forwarded_headers: true), for when the port sits
+# behind the user's own reverse proxy terminating TLS: the headers are left alone
+# so redirects keep the external scheme and host. X-Forwarded-Prefix and
+# X-Ingress-Path are stripped in the site block either way — they are the ingress
+# contract, and nothing outside may claim it.
+(trust_forwarded) {
+	request_header -X-Ingress-Path
+}
+
+# INGRESS LISTENER — reachable only by the Home Assistant supervisor. It is named
+# by `ingress_port` in config.yaml and is deliberately NOT in `ports`, so nothing
+# outside the supervisor can open a connection to it. That is what makes the
+# X-Ingress-Path handling below safe to trust: a request arriving here came from
+# the supervisor, no header inspection required.
+#
+# Before the listeners were split, this ran on the published :8080 and the guard
+# was "no X-Ingress-Path header means strip X-Forwarded-Prefix" — which any client
+# could sidestep by simply sending X-Ingress-Path itself and choosing its own base
+# path. The trust boundary is the socket now, not the header.
+:8099 {
+	# The supervisor proxy strips the /api/hassio_ingress/<token> prefix and
+	# forwards it as X-Ingress-Path. Map it to X-Forwarded-Prefix so Symfony (which
+	# trusts the private-range proxy, see config/packages/zz-ha-ingress.yaml)
+	# generates redirects and router/asset URLs under the ingress base path.
+	#
+	# The two matchers are mutually exclusive so their order never conflicts — a
+	# single unconditional strip plus a conditional set would not work, because
+	# Caddy's headers handler applies deletions after sets and would clobber our
+	# value on legit ingress requests.
+	@noIngressPath not header X-Ingress-Path *
+	request_header @noIngressPath -X-Forwarded-Prefix
+	@hasIngressPath header X-Ingress-Path *
+	request_header @hasIngressPath X-Forwarded-Prefix {header.X-Ingress-Path}
+
+	import app
+}
+
+# PUBLISHED LISTENER — the optional 8080/tcp port, plus the HA watchdog's
+# /healthz check. Never ingress: the prefix headers are stripped unconditionally,
+# and the remaining X-Forwarded-* ones according to the trust_forwarded_headers
+# option (start.sh resolves it into SFS_FORWARDED_MODE; absent means strip).
+:8080 {
+	request_header -X-Ingress-Path
+	request_header -X-Forwarded-Prefix
+	import {$SFS_FORWARDED_MODE:strip_forwarded}
+
+	import app
 }

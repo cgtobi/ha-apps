@@ -58,6 +58,7 @@ The add-on options are intentionally minimal — they cover only what the app ne
 | `admin_username` | Login user for the admin panel. Default `admin`. |
 | `admin_password` | Login password for the admin panel, provided in plaintext here. The add-on hashes it internally into the app's `ADMIN_PASSWORD_HASH`; the plaintext is never stored in the app itself. Required — the admin panel needs a login before it can be used. |
 | `dreeve_api_key` | Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Optional — leave empty and the API rejects every request. Generate a key in the admin panel under Settings → Security and paste it here. See "The `/api/v1` HTTP API" below. |
+| `trust_forwarded_headers` | Whether the app believes `X-Forwarded-*` headers on the direct `8080/tcp` port. Default `false`, which is right unless you put your own reverse proxy in front of that port — see "Direct port access and reverse proxies" below. Ingress is unaffected. |
 | `expose_share` | Expose the file-import watch dir over the add-on's mapped config dir (SMB/CIFS) so you can drop activity files into it. Used with `import_mode: files`. |
 | `caddy_log_level` | Log verbosity for the embedded web server: `DEBUG`, `INFO`, `WARN`, or `ERROR`. |
 
@@ -84,6 +85,30 @@ in front of it.
 
 Uploaded files land in the same watch directory the file-import modes use, so they are picked up by
 the next import pass.
+
+## Direct port access and reverse proxies
+
+Home Assistant ingress and the optional `8080/tcp` port are served by two separate
+listeners inside the add-on. The ingress one is reachable only by the Home Assistant
+supervisor; `8080/tcp` is the one you expose. They differ in a single respect: what
+they believe about `X-Forwarded-*` request headers.
+
+By default the published port ignores them. It has to: the app trusts any client on a
+private network to be a legitimate proxy, so anything on your LAN that can reach the
+port could otherwise claim to be one — sending `X-Forwarded-Host` to make the admin
+login page redirect somewhere else, or `X-Forwarded-For` to look like an allow-listed
+address. Ignoring the headers costs nothing when clients talk to the port directly.
+
+Set `trust_forwarded_headers: true` when the port sits behind **your own** reverse
+proxy (nginx, Traefik, Caddy, NPM…) that terminates TLS. Without it the app cannot
+see that the original request was HTTPS or which hostname was used, so redirects —
+the admin login among them — come back as `http://` and with the add-on's internal
+host. Only turn it on when a proxy you control is the only thing that can reach the
+port; on a port open to the LAN it hands back exactly the abilities described above.
+
+Serving the app under a **subpath** on your own proxy (e.g. `https://example/dreeve/`)
+is not supported on the direct port: the prefix headers are reserved for ingress and
+are always stripped there. Use a dedicated hostname, or use ingress.
 
 ## Configuring the app
 

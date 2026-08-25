@@ -1,5 +1,5 @@
 name: "Dreeve"
-version: "0.5.29"
+version: "0.5.30"
 slug: "statistics_for_strava"
 description: "Dashboard for your sports & fitness data"
 url: "https://github.com/dreeveapp/dreeve"
@@ -47,6 +47,7 @@ options:
   app_url: ""
   admin_username: "admin"
   admin_password: ""
+  admin_allowed_ips: ""
   dreeve_api_key: ""
   trust_forwarded_headers: false
   expose_share: false
@@ -61,6 +62,7 @@ schema:
   app_url: str?
   admin_username: str
   admin_password: password
+  admin_allowed_ips: str?
   dreeve_api_key: password?
   trust_forwarded_headers: bool
   expose_share: bool

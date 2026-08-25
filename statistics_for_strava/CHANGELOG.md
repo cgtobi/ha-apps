@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.30
+
+- feat: new `admin_allowed_ips` option restricts the admin panel to the addresses you name (IPs or CIDR ranges, comma-separated). Anyone else gets a `404` for `/admin`, so it does not even look like there is a panel to log into. Empty by default, which changes nothing. The rest of the app — dashboard, files, the `/api/v1` endpoints — is not affected, and this is a narrowing of who may try the login, not a replacement for `admin_password`. Home Assistant ingress keeps working whatever you list; the add-on always allows the supervisor network on top of your entries, because the check applies to ingress requests too. A malformed entry is refused at startup with the reason in the log, and the restriction is left off rather than making the panel unreachable. Note that `trust_forwarded_headers: true` on a LAN-reachable port undermines this — see DOCS.md.
+
 ## 0.5.29
 
 - docs: the `.uploads` staging directory that shows up in the watch folder, and Dreeve's refusal of multi-sport FIT files, are both documented — neither is a fault of the add-on or the connectors. Every bump entry's changelog link now points at the upstream releases page. Those links had gone stale twice over — first when the project was renamed from Statistics for Strava, then when upstream moved to a new documentation site — and none of them landed on release notes any more.

@@ -66,6 +66,23 @@ if [ -f "$OPTIONS_FILE" ]; then
   export IMPORT_MODE="$(jq -r '.import_mode // "stravaApi"' "$OPTIONS_FILE")"
   export ADMIN_USERNAME="$(jq -r '.admin_username // "admin"' "$OPTIONS_FILE")"
 
+  # Optional IP allowlist for the admin panel. Upstream's gate answers 404 for
+  # /admin (and only /admin) when the caller's address is not listed, so a scanner
+  # on the network sees no panel at all. Empty is upstream's default and disables
+  # it. sfs-admin-ips.php validates the value — upstream would otherwise surface a
+  # typo as a bare 400 on /admin at request time, with the add-on happily running —
+  # and adds the supervisor network so enabling the option cannot lock the user out
+  # of the panel in the HA sidebar.
+  _admin_allowed_ips="$(jq -r '.admin_allowed_ips // ""' "$OPTIONS_FILE")"
+  if [ -n "$_admin_allowed_ips" ]; then
+    if _admin_allowed_ips_normalized="$(php /usr/local/bin/sfs-admin-ips.php "$_admin_allowed_ips" 2>&1)"; then
+      export ADMIN_ALLOWED_IPS="$_admin_allowed_ips_normalized"
+      log "Admin panel restricted to: ${_admin_allowed_ips_normalized}"
+    else
+      log "WARN: admin_allowed_ips ignored, the admin panel stays reachable from anywhere it is served — ${_admin_allowed_ips_normalized}"
+    fi
+  fi
+
   # Which Caddy snippet the published :8080 listener imports for the client's
   # X-Forwarded-* headers. Default (option false or absent) strips them: Symfony
   # trusts any private-range peer, and a LAN client hitting the exposed port is

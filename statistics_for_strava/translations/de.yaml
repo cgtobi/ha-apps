@@ -32,6 +32,10 @@ configuration:
     name: Admin-Passwort
     description: >-
       Passwort für den Login des integrierten Admin-Panels. Erforderlich; das Admin-Panel benötigt einen Login. Das Add-on hasht es, bevor es an die App übergeben wird.
+  admin_allowed_ips:
+    name: IP-Freigabeliste für das Admin-Panel
+    description: >-
+      Optionale, kommagetrennte IP-Adressen oder CIDR-Bereiche, die auf das Admin-Panel zugreifen dürfen, zum Beispiel `192.168.1.50, 192.168.4.0/24`. Leer bedeutet keine Einschränkung. Andere Adressen erhalten für `/admin` ein `404`; der Rest der App bleibt unberührt. Home Assistant Ingress funktioniert unabhängig davon weiter. Wirkt kaum, solange `trust_forwarded_headers` aktiv und der Port aus dem LAN erreichbar ist.
   dreeve_api_key:
     name: API-Schlüssel
     description: >-

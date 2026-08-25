@@ -32,6 +32,10 @@ configuration:
     name: Admin password
     description: >-
       Password for the built-in admin panel login. Required; the admin panel needs a login. The add-on hashes it before passing it to the app.
+  admin_allowed_ips:
+    name: Admin panel IP allowlist
+    description: >-
+      Optional comma-separated IP addresses or CIDR ranges allowed to reach the admin panel, for example `192.168.1.50, 192.168.4.0/24`. Empty means no restriction. Other addresses get a `404` for `/admin`; the rest of the app is unaffected. Home Assistant ingress keeps working regardless. Has little effect while `trust_forwarded_headers` is on and the port is reachable from your LAN.
   dreeve_api_key:
     name: API key
     description: >-

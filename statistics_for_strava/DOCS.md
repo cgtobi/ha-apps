@@ -64,6 +64,7 @@ The add-on options are intentionally minimal — they cover only what the app ne
 | `app_url` | The URL you reach the app on (include the port if used). Required — the app will not boot without it. For Home Assistant ingress, a value like `http://localhost:8080` is accepted; set a real, publicly reachable URL if you need direct access or Strava webhooks. |
 | `admin_username` | Login user for the admin panel. Default `admin`. |
 | `admin_password` | Login password for the admin panel, provided in plaintext here. The add-on hashes it internally into the app's `ADMIN_PASSWORD_HASH`; the plaintext is never stored in the app itself. Required — the admin panel needs a login before it can be used. |
+| `admin_allowed_ips` | Optional comma-separated list of IP addresses or CIDR ranges allowed to reach the admin panel. Empty (the default) means no restriction. See "Restricting the admin panel by IP" below. |
 | `dreeve_api_key` | Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Optional — leave empty and the API rejects every request. Generate a key in the admin panel under Settings → Security and paste it here. See "The `/api/v1` HTTP API" below. |
 | `trust_forwarded_headers` | Whether the app believes `X-Forwarded-*` headers on the direct `8080/tcp` port. Default `false`, which is right unless you put your own reverse proxy in front of that port — see "Direct port access and reverse proxies" below. Ingress is unaffected. |
 | `expose_share` | Expose the file-import watch dir over the add-on's mapped config dir (SMB/CIFS) so you can drop activity files into it. Used with `import_mode: files`. |
@@ -73,6 +74,32 @@ You must set `admin_password` before the first start — the add-on fails fast a
 
 > Privacy note: add-on options are persisted by Home Assistant on disk in `/data/options.json`.
 > Do not store unnecessary sensitive personal data in options.
+
+## Restricting the admin panel by IP
+
+`admin_allowed_ips` takes a comma-separated list of addresses or CIDR ranges, for example
+`192.168.1.50, 192.168.4.0/24`. When it is set, any request for `/admin` from an address not on the
+list is answered with `404` — a scanner on your network sees no admin panel rather than a login form.
+Leave it empty (the default) and nothing is restricted.
+
+What it does and does not do:
+
+- It gates **only** `/admin` and the pages below it. The dashboard, your activity pages, `/files/*`
+  and the `/api/v1` endpoints are unaffected — the API has its own key, the rest is readable by
+  anyone who can reach the app.
+- It is **not** a login. `admin_password` is still what protects the panel; this only narrows who
+  gets to try.
+- Home Assistant ingress keeps working whatever you list. The add-on always allows the supervisor
+  network (`172.30.32.0/23`) on top of your entries, because the check applies to ingress requests
+  too and would otherwise lock you out of the panel in the HA sidebar. Ingress already requires a
+  Home Assistant login, so nothing is opened up by that.
+- A malformed entry is refused at startup and the option is ignored, with the reason in the add-on
+  log — the restriction is simply not applied, rather than the panel becoming unreachable.
+
+> **This option and `trust_forwarded_headers` work against each other.** With
+> `trust_forwarded_headers: true` on a port that your LAN can reach, any client there can send an
+> `X-Forwarded-For` header naming an allowed address and pass the check. Only combine the two when
+> the port is reachable exclusively through a reverse proxy you control.
 
 ## The `/api/v1` HTTP API
 

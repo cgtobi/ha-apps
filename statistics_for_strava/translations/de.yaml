@@ -32,6 +32,10 @@ configuration:
     name: Admin-Passwort
     description: >-
       Passwort für den Login des integrierten Admin-Panels. Erforderlich; das Admin-Panel benötigt einen Login. Das Add-on hasht es, bevor es an die App übergeben wird.
+  dreeve_api_key:
+    name: API-Schlüssel
+    description: >-
+      Bearer-Token für die `/api/v1`-HTTP-API der App (Upload von Aktivitäten, genutzt von GadgetBridge). Leer lassen, um die API geschlossen zu halten; jede Anfrage wird dann abgelehnt. Einen Schlüssel erzeugst du im Admin-Panel unter Einstellungen, Sicherheit. Über Ingress ist die API nicht erreichbar, dafür muss der Port `8080/tcp` freigegeben sein.
   expose_share:
     name: Datei-Import-Verzeichnis freigeben
     description: >-

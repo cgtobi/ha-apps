@@ -7,13 +7,16 @@ namespace App\Infrastructure\Twig;
 use App\Application\AppUrl;
 use App\Domain\Activity\Activity;
 use App\Domain\Activity\ActivityFragmentPath;
+use App\Domain\Activity\ActivityId;
 use App\Domain\Activity\SportType\SportType;
 use App\Domain\Image\ImageOrientation;
 use App\Domain\Segment\Segment;
 use App\Domain\Segment\SegmentFragmentPath;
+use App\Infrastructure\Http\Fragment\FragmentType;
 use App\Infrastructure\ValueObject\String\FilteredUrl;
 use App\Infrastructure\ValueObject\String\RelativeUrl;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Twig\Attribute\AsTwigFilter;
 use Twig\Attribute\AsTwigFunction;
 
@@ -24,7 +27,12 @@ use Twig\Attribute\AsTwigFunction;
  * the current request's base URL (see prefixWithRequestBaseUrl below). Keep every
  * other method byte-identical to upstream: they carry the URLs the SPA fetches,
  * and a stale copy silently drops Twig functions templates call (v5.2.3 added
- * filteredUrl) or points the app at routes that no longer exist.
+ * filteredUrl; v5.3.0 added fragmentDataUrl, fragmentPartialUrl and
+ * activityFragmentPath) or points the app at routes that no longer exist.
+ *
+ * The fragment*Url() functions build their path with the Symfony URL generator,
+ * which already prepends the forwarded prefix, and then hand it to relativeUrl().
+ * prefixWithRequestBaseUrl() returns such a URL untouched, so it is prefixed once.
  *
  * relativeUrl() builds root-absolute URLs from APP_URL's base path. Under Home
  * Assistant ingress the base path is not in APP_URL at all: it is a per-session
@@ -48,10 +56,11 @@ final readonly class UrlTwigExtension
 {
     public function __construct(
         private AppUrl $appUrl,
+        private UrlGeneratorInterface $urlGenerator,
         private StringTwigExtension $stringTwigExtension,
         private SvgsTwigExtension $svgsTwigExtension,
         // Optional so upstream's own UrlTwigExtensionTest, which constructs this
-        // class with the three arguments above, keeps working.
+        // class with the four arguments above, keeps working.
         private ?RequestStack $requestStack = null,
     ) {
     }
@@ -89,6 +98,30 @@ final readonly class UrlTwigExtension
         }
 
         return $baseUrl.$url;
+    }
+
+    #[AsTwigFunction('fragmentDataUrl')]
+    public function toFragmentDataUrl(string $path): string
+    {
+        return $this->toRelativeUrl($this->urlGenerator->generate('api_fragment', [
+            'type' => FragmentType::DATA->value,
+            'path' => $path,
+        ]));
+    }
+
+    #[AsTwigFunction('fragmentPartialUrl')]
+    public function toFragmentPartialUrl(string $path): string
+    {
+        return $this->toRelativeUrl($this->urlGenerator->generate('api_fragment', [
+            'type' => FragmentType::PARTIAL->value,
+            'path' => $path,
+        ]));
+    }
+
+    #[AsTwigFunction('activityFragmentPath')]
+    public function activityFragmentPath(ActivityId $activityId, ?string $subResource = null): string
+    {
+        return ActivityFragmentPath::for($activityId, $subResource);
     }
 
     #[AsTwigFunction('placeholderImage')]

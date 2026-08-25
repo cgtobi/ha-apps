@@ -65,6 +65,21 @@ if [ -f "$OPTIONS_FILE" ]; then
   export CADDY_LOG_LEVEL="$(jq -r '.caddy_log_level // ""' "$OPTIONS_FILE")"
   export IMPORT_MODE="$(jq -r '.import_mode // "stravaApi"' "$OPTIONS_FILE")"
   export ADMIN_USERNAME="$(jq -r '.admin_username // "admin"' "$OPTIONS_FILE")"
+
+  # Bearer token for the upstream /api/v1 endpoints (v5.3.0, GadgetBridge
+  # uploads). Only exported when set: an empty DREEVE_API_KEY is what upstream
+  # defaults to, and the token handler rejects every request while it is empty,
+  # so leaving the option blank keeps the API closed. Generate a value in the
+  # admin panel (Settings -> Security) and paste it into the option; the API is
+  # only reachable on the direct :8080 port, ingress sits behind HA auth.
+  _dreeve_api_key="$(jq -r '.dreeve_api_key // ""' "$OPTIONS_FILE")"
+  if [ -n "$_dreeve_api_key" ]; then
+    export DREEVE_API_KEY="$_dreeve_api_key"
+    case "$_dreeve_api_key" in
+      drv_*) ;;
+      *) log "WARN: dreeve_api_key does not look like an app-generated key (expected a drv_... value); the API will reject every request" ;;
+    esac
+  fi
 fi
 
 # APP_URL, APP_SECRET and ADMIN_PASSWORD_HASH are resolved by 00-init (APP_URL is

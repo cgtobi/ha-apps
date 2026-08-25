@@ -1,0 +1,29 @@
+# ADD-ON OWNED FILE — this shadows nothing upstream ships, so it needs no resync.
+#
+# Symfony merges every `framework:` fragment it finds in config/packages, and a
+# later file's value replaces an earlier one. Upstream's framework.yaml sets
+# trusted_proxies from the TRUSTED_PROXIES env and a trusted_headers list that
+# does NOT contain x-forwarded-prefix; the values below replace both.
+#
+# WHY WE NEED THE PREFIX: Home Assistant ingress terminates at the supervisor
+# proxy (a private IP), which strips the /api/hassio_ingress/<token> prefix and
+# forwards it as X-Ingress-Path. The Caddyfile maps that to X-Forwarded-Prefix.
+# For Symfony to honor it — in redirects, router URLs and asset URLs — the proxy
+# must be trusted AND the header must be in trusted_headers. Upstream has no
+# reason to list it and no env knob for it, which is why this file exists.
+# Without it, generated URLs come out root-absolute and the browser resolves them
+# against the Home Assistant host root instead of the ingress base path.
+#
+# `private_ranges` (Symfony 6.3+) covers the supervisor proxy IP without pinning
+# an address. x-forwarded-host is trusted so absolute URLs (the admin login
+# redirect, for one) name the host the browser actually reached, not the add-on's
+# internal one.
+#
+# LOAD ORDER MATTERS: this file must be imported after upstream's framework.yaml,
+# or upstream's header list wins and ingress navigation silently breaks. The
+# loader sorts by name (GlobResource uses strnatcmp / Finder::sortByName), so the
+# zz- prefix is what puts us last — keep it. sfs-startup-preflight.sh asserts the
+# effective header list at boot so a regression here is visible in the log.
+framework:
+    trusted_proxies: 'private_ranges'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port', 'x-forwarded-prefix']

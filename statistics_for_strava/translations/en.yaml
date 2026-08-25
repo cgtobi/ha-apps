@@ -32,6 +32,10 @@ configuration:
     name: Admin password
     description: >-
       Password for the built-in admin panel login. Required; the admin panel needs a login. The add-on hashes it before passing it to the app.
+  dreeve_api_key:
+    name: API key
+    description: >-
+      Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Leave empty to keep the API closed; every request is then rejected. Generate a key in the admin panel under Settings, Security. The API is not reachable through ingress, it needs port `8080/tcp` exposed.
   expose_share:
     name: Expose file-import watch directory
     description: >-

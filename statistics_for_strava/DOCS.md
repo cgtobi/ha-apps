@@ -57,6 +57,7 @@ The add-on options are intentionally minimal — they cover only what the app ne
 | `app_url` | The URL you reach the app on (include the port if used). Required — the app will not boot without it. For Home Assistant ingress, a value like `http://localhost:8080` is accepted; set a real, publicly reachable URL if you need direct access or Strava webhooks. |
 | `admin_username` | Login user for the admin panel. Default `admin`. |
 | `admin_password` | Login password for the admin panel, provided in plaintext here. The add-on hashes it internally into the app's `ADMIN_PASSWORD_HASH`; the plaintext is never stored in the app itself. Required — the admin panel needs a login before it can be used. |
+| `dreeve_api_key` | Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Optional — leave empty and the API rejects every request. Generate a key in the admin panel under Settings → Security and paste it here. See "The `/api/v1` HTTP API" below. |
 | `expose_share` | Expose the file-import watch dir over the add-on's mapped config dir (SMB/CIFS) so you can drop activity files into it. Used with `import_mode: files`. |
 | `caddy_log_level` | Log verbosity for the embedded web server: `DEBUG`, `INFO`, `WARN`, or `ERROR`. |
 
@@ -64,6 +65,25 @@ You must set `admin_password` before the first start — the add-on fails fast a
 
 > Privacy note: add-on options are persisted by Home Assistant on disk in `/data/options.json`.
 > Do not store unnecessary sensitive personal data in options.
+
+## The `/api/v1` HTTP API
+
+Dreeve v5.3.0 added a small HTTP API — `GET /api/v1/status` and `POST /api/v1/activity/upload`
+(multipart, part name `file`) — intended for GadgetBridge and similar clients that push activity
+files in. It is off until you set `dreeve_api_key`; without a key every request gets a `401`.
+
+1. Open the admin panel, go to Settings → Security, and generate a key (a `drv_...` value).
+2. Paste it into the `dreeve_api_key` add-on option and restart the add-on.
+3. Call the API with `Authorization: Bearer drv_...`.
+
+The API is **not reachable through Home Assistant ingress**: ingress requires a Home Assistant
+session, so a device client cannot use that URL. Expose the add-on's `8080/tcp` port (Configuration
+→ Network) and point the client at `http://<home-assistant-host>:8080/api/v1/...`. The port serves
+the whole app, not just the API, so only expose it on a network you trust — or put a reverse proxy
+in front of it.
+
+Uploaded files land in the same watch directory the file-import modes use, so they are picked up by
+the next import pass.
 
 ## Configuring the app
 

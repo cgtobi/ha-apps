@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.27
+
+- feat: bump Dreeve to v5.3.0 [Changelog](https://docs.dreeve.app/#/changelog)
+- fix: pages render after the v5.3.0 bump. Dreeve moved its `/api` controllers to `/api/internal`, and the add-on's overridden `IndexPage.php` still imported `App\Controller\Api\ApiFragmentRequestHandler`, which no longer exists — a fatal on every page render.
+- fix: the overridden `UrlTwigExtension.php` is resynced with v5.3.0, which added the `fragmentDataUrl`, `fragmentPartialUrl` and `activityFragmentPath` Twig functions. Without them the dashboard, activity, segment, heatmap and rewind templates fail to render. The two fragment URLs are built by Symfony's URL generator, which already applies the ingress prefix, and the add-on's prefixing skips a URL that already carries it — so they are prefixed exactly once.
+- chore: the build-time override check now also verifies that every `App\...` class an overridden file imports still exists in the upstream image. The stale import above was invisible to the existing checks, because a `use` line is not a quoted literal.
+- feat: new `dreeve_api_key` option enables the `/api/v1` HTTP API v5.3.0 added (activity upload, for GadgetBridge and similar clients). Left empty — the default — the API rejects every request. It is not reachable through ingress; it needs the `8080/tcp` port exposed. See DOCS.md.
+- chore: the web server now caps how long a request body may take to arrive (60s), matching upstream's Caddyfile change for the new upload endpoint.
+- chore: the add-on no longer overrides upstream's `framework.yaml`. The two settings it existed for — trusting the ingress proxy and its `X-Forwarded-Prefix` header — moved into an add-on-owned `config/packages/zz-ha-ingress.yaml`, which shadows no upstream file and so cannot go stale. This is the file whose drift broke startup in 0.5.21; upstream now also drives its own copy from a `TRUSTED_PROXIES` env var, which we would have had to keep re-merging on every bump. Startup logs the effective trusted-header list, so the one thing the new file does depend on — loading after upstream's — is checked rather than assumed.
+
 ## 0.5.26
 
 - fix: no more flash of a giant logo on a full page load (returning to the app from the admin panel, for example). Upstream marks everything outside `/files/` as `no-store`, so the browser refetched the ~176kB stylesheet before it could style anything and painted the unstyled page meanwhile. Everything under `/css`, `/js` and `/libraries` is version-stamped, so the add-on now lets the browser cache it for a day; an upstream bump changes the stamp and busts the cache.

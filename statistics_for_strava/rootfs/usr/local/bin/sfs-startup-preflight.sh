@@ -37,6 +37,26 @@ else
   warn "Storage symlink missing: ${WWW_STORAGE_LINK}"
 fi
 
+# The ingress base path only reaches Symfony if x-forwarded-prefix is in the
+# effective trusted_headers. That value comes from config/packages/zz-ha-ingress.yaml,
+# which wins over upstream's framework.yaml only because Symfony loads
+# config/packages in name order and ours sorts last. If that ever stops holding
+# (upstream adds a later-sorting file of its own, our file gets renamed), the
+# failure is silent: every URL comes out without the ingress prefix and the SPA
+# renders nothing. Assert it here so the log says so instead.
+TRUSTED_HEADERS="$(cd /var/www && php bin/console debug:container --parameter=kernel.trusted_headers --format=json 2>/dev/null || true)"
+case "$TRUSTED_HEADERS" in
+  *x-forwarded-prefix*)
+    log "OK trusted_headers includes x-forwarded-prefix (ingress base path honored)"
+    ;;
+  '')
+    warn "Could not read kernel.trusted_headers; skipped the ingress trusted-header check"
+    ;;
+  *)
+    warn "trusted_headers is missing x-forwarded-prefix — ingress URLs will lose the base path. Check that config/packages/zz-ha-ingress.yaml still loads after upstream's framework.yaml"
+    ;;
+esac
+
 if [ -r "$RECONCILE_STATUS" ]; then
   log "Reconcile status:"
   sed -n '1,3p' "$RECONCILE_STATUS" | sed "s/^/$(timestamp) [preflight]   /"

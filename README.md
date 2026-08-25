@@ -23,7 +23,7 @@ The Dreeve add-on uses the official upstream GHCR image as its base image. To te
 
 ```sh
 docker build -t dreeve-local ./statistics_for_strava
-docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve:v5.0.0 -t dreeve-local ./statistics_for_strava
+docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve:v5.3.0 -t dreeve-local ./statistics_for_strava
 ```
 
 ### [Dreeve Garmin Connector](./dreeve_garmin_connector)
@@ -51,7 +51,7 @@ The Dreeve Polar Connector add-on uses the upstream GHCR image as its base image
 
 ```sh
 docker build -t dreeve-polar-connector-local ./dreeve_polar_connector
-docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve-polar-connector:0.1.3 -t dreeve-polar-connector-local ./dreeve_polar_connector
+docker build --build-arg BUILD_FROM=ghcr.io/dreeveapp/dreeve-polar-connector:0.2.0 -t dreeve-polar-connector-local ./dreeve_polar_connector
 ```
 
 ### [Dreeve Wahoo Connector](./dreeve_wahoo_connector)

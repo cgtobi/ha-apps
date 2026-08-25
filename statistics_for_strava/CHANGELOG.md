@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.29
+
+- docs: the `.uploads` staging directory that shows up in the watch folder, and Dreeve's refusal of multi-sport FIT files, are both documented — neither is a fault of the add-on or the connectors. Every bump entry's changelog link now points at the upstream releases page. Those links had gone stale twice over — first when the project was renamed from Statistics for Strava, then when upstream moved to a new documentation site — and none of them landed on release notes any more.
+
 ## 0.5.28
 
 - fix: a client on your network could tell the add-on how to build its URLs, if you expose the `8080/tcp` port. Ingress and that port are now served by two separate listeners: the ingress one is reachable only by the Home Assistant supervisor, the published one never accepts ingress headers at all. Previously both shared a port and the add-on told them apart by a request header — which a client could simply send, choosing its own base path, or spoofing `X-Forwarded-Host` so the admin login redirected to a host of its choosing. Ingress users need do nothing; the Web UI stays on port 8080.
@@ -7,7 +11,7 @@
 
 ## 0.5.27
 
-- feat: bump Dreeve to v5.3.0 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.3.0 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 - fix: pages render after the v5.3.0 bump. Dreeve moved its `/api` controllers to `/api/internal`, and the add-on's overridden `IndexPage.php` still imported `App\Controller\Api\ApiFragmentRequestHandler`, which no longer exists — a fatal on every page render.
 - fix: the overridden `UrlTwigExtension.php` is resynced with v5.3.0, which added the `fragmentDataUrl`, `fragmentPartialUrl` and `activityFragmentPath` Twig functions. Without them the dashboard, activity, segment, heatmap and rewind templates fail to render. The two fragment URLs are built by Symfony's URL generator, which already applies the ingress prefix, and the add-on's prefixing skips a URL that already carries it — so they are prefixed exactly once.
 - chore: the build-time override check now also verifies that every `App\...` class an overridden file imports still exists in the upstream image. The stale import above was invisible to the existing checks, because a `use` line is not a quoted literal.
@@ -31,11 +35,11 @@
 
 ## 0.5.23
 
-- feat: bump Dreeve to v5.2.3 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.2.3 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.22
 
-- feat: bump Dreeve to v5.2.2 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.2.2 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.21
 
@@ -45,7 +49,7 @@
 
 ## 0.5.20
 
-- feat: bump Dreeve to v5.2.1 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.2.1 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.19
 
@@ -59,15 +63,15 @@
 
 ## 0.5.18
 
-- feat: bump Dreeve to v5.2.0 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.2.0 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.17
 
-- feat: bump Dreeve to v5.1.5 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.1.5 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.16
 
-- feat: bump Dreeve to v5.1.4 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.1.4 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.15
 
@@ -75,15 +79,15 @@
 
 ## 0.5.14
 
-- feat: bump Dreeve to v5.1.3 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.1.3 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.13
 
-- feat: bump Dreeve to v5.1.2 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.1.2 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.12
 
-- feat: bump Dreeve to v5.1.1 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.1.1 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.11
 
@@ -95,7 +99,7 @@
 
 ## 0.5.9
 
-- feat: bump Dreeve to v5.1.0 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.1.0 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.8
 
@@ -103,11 +107,11 @@
 
 ## 0.5.7
 
-- feat: bump Dreeve to v5.0.2 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.0.2 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.6
 
-- feat: bump Dreeve to v5.0.1 [Changelog](https://docs.dreeve.app/#/changelog)
+- feat: bump Dreeve to v5.0.1 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.5.5
 
@@ -163,7 +167,7 @@
 
 ## 0.4.94
 
-- feat: bump Statistics for Strava to v4.8.8 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.8.8 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.93
 
@@ -207,23 +211,23 @@
 
 ## 0.4.83
 
-- feat: bump Statistics for Strava to v4.8.7 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.8.7 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.82
 
-- feat: bump Statistics for Strava to v4.8.5 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.8.5 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.81
 
-- feat: bump Statistics for Strava to v4.8.4 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.8.4 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.80
 
-- feat: bump Statistics for Strava to v4.8.3 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.8.3 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.79
 
-- feat: bump Statistics for Strava to v4.8.2 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.8.2 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.78
 
@@ -239,19 +243,19 @@
 
 ## 0.4.75
 
-- feat: bump Statistics for Strava to v4.8.1 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.8.1 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.74
 
-- feat: bump Statistics for Strava to v4.7.12 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.12 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.73
 
-- feat: bump Statistics for Strava to v4.7.11 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.11 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.72
 
-- feat: bump Statistics for Strava to v4.7.10 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.10 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.71
 
@@ -259,31 +263,31 @@
 
 ## 0.4.70
 
-- feat: bump Statistics for Strava to v4.7.9 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.9 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.69
 
-- feat: bump Statistics for Strava to v4.7.8 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.8 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.68
 
-- fix: test fix for issue 1993 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- fix: test fix for issue 1993 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.67
 
-- feat: bump Statistics for Strava to v4.7.7 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.7 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.66
 
-- feat: bump Statistics for Strava to v4.7.6 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.6 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.65
 
-- feat: bump Statistics for Strava to v4.7.5 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.5 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.64
 
-- feat: bump Statistics for Strava to v4.7.4 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.4 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.4.62
 
@@ -442,11 +446,11 @@
 
 ## 0.3.48
 
-- feat: bump Statistics for Strava to v4.7.3 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.3 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.3.47
 
-- feat: bump Statistics for Strava to v4.7.2 [Changelog](https://statistics-for-strava-docs.robiningelbrecht.be/#/changelog)
+- feat: bump Statistics for Strava to v4.7.2 [Changelog](https://github.com/dreeveapp/dreeve/releases)
 
 ## 0.3.46
 

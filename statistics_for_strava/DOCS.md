@@ -18,6 +18,7 @@ Notes:
 
 - The daemon scans the watch dir and imports every ~5 minutes; a startup import also runs once per container start.
 - Imported files are **deleted** from the watch dir after a successful import — this is expected behavior.
+- A `.uploads` directory appears inside the watch folder. It is the app's staging area: files uploaded through the admin panel or the API are written there and then moved into place, so an import never sees a half-written file. Leave it alone; it stays empty between uploads.
 - `expose_share` only controls whether the watch dir is created and symlinked; the underlying mount (`addon_config:rw`) is always granted but scoped to this add-on's own config dir, not all of `/share`.
 
 ### Importing from Garmin Connect or Polar Flow (`files` mode)
@@ -35,6 +36,12 @@ To use either, configure this add-on with:
 Because `stravaApi` and `files` are mutually exclusive, Strava API import cannot run at the same time
 as connector import. Several connectors can run alongside each other, since they all deliver into the
 same watch folder.
+
+Dreeve v5.3.0 and later refuse a FIT file that contains more than one sport — a triathlon recorded
+as a single multi-sport activity, for example — with `Multi-sport FIT file "..." import not
+supported, each leg needs to be imported as a separate file`. Export the legs individually from the
+device or platform. This is upstream behavior and applies however the file arrives: connector, SMB
+drop, or API upload.
 
 See each connector add-on's own documentation for setup:
 

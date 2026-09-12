@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.32
+
+- fix: the overridden `UrlTwigExtension.php` is resynced with v5.3.3, which added the `relativeUrlWithRedirectTo` and `redirectUrl` Twig functions and now injects `RequestStack` itself. Without them the admin activity overview and every page carrying an admin edit link fail to render. Under ingress both the link and the `redirectTo` it carries are prefixed with the ingress base path, so returning from an edit lands back inside the session instead of at the Home Assistant host root.
+
 ## 0.5.31
 
 - feat: bump Dreeve to v5.3.3 [Changelog](https://github.com/dreeveapp/dreeve/releases)

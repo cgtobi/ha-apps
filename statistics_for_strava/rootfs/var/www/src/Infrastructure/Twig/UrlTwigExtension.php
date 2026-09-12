@@ -13,6 +13,7 @@ use App\Domain\Image\ImageOrientation;
 use App\Domain\Segment\Segment;
 use App\Domain\Segment\SegmentFragmentPath;
 use App\Infrastructure\Http\Fragment\FragmentType;
+use App\Infrastructure\Http\Request\RedirectTo;
 use App\Infrastructure\ValueObject\String\FilteredUrl;
 use App\Infrastructure\ValueObject\String\RelativeUrl;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -23,12 +24,14 @@ use Twig\Attribute\AsTwigFunction;
 /*
  * OVERRIDDEN UPSTREAM FILE — resync on every image bump.
  *
- * Same as upstream except relativeUrl()/filteredUrl() re-anchor their result on
- * the current request's base URL (see prefixWithRequestBaseUrl below). Keep every
- * other method byte-identical to upstream: they carry the URLs the SPA fetches,
- * and a stale copy silently drops Twig functions templates call (v5.2.3 added
- * filteredUrl; v5.3.0 added fragmentDataUrl, fragmentPartialUrl and
- * activityFragmentPath) or points the app at routes that no longer exist.
+ * Same as upstream except relativeUrl(), filteredUrl() and both halves of
+ * relativeUrlWithRedirectTo() re-anchor their result on the current request's
+ * base URL (see prefixWithRequestBaseUrl below). Keep every other method
+ * byte-identical to upstream: they carry the URLs the SPA fetches, and a stale
+ * copy silently drops Twig functions templates call (v5.2.3 added filteredUrl;
+ * v5.3.0 added fragmentDataUrl, fragmentPartialUrl and activityFragmentPath;
+ * v5.3.3 added relativeUrlWithRedirectTo and redirectUrl) or points the app at
+ * routes that no longer exist.
  *
  * The fragment*Url() functions build their path with the Symfony URL generator,
  * which already prepends the forwarded prefix, and then hand it to relativeUrl().
@@ -49,6 +52,21 @@ use Twig\Attribute\AsTwigFunction;
  * the js-dist-url meta the webpack public path is read from, and the activity /
  * segment fragment links.
  *
+ * relativeUrlWithRedirectTo() gets both its arguments as literal paths from
+ * html/navigation/admin-edit-link.html.twig ('admin/settings/dashboard' with
+ * redirectTo 'dashboard', and the like), so both need the prefix; the admin
+ * activity overview passes path() output for both, which already carries it and
+ * is left alone. The redirectTo value is not just a link the browser resolves:
+ * the app redirects to it verbatim after the edit, so a value without the prefix
+ * would land outside the ingress session.
+ *
+ * redirectUrl() is deliberately upstream-identical. It reads the redirectTo
+ * query parameter back out, which relativeUrlWithRedirectTo() already wrote with
+ * the prefix, and its callers' defaults are relativeUrl()/path() output that
+ * carries it too. Prefixing here would also turn the empty default of
+ * `redirectUrl('')` into a non-empty URL, and the settings forms read that as
+ * "no redirect after saving" (data-redirect).
+ *
  * The prefix ends up in rendered HTML that the v5.2.0 render cache stores, so
  * CacheableRenderer is overridden as well to key cache entries per base path.
  */
@@ -56,12 +74,10 @@ final readonly class UrlTwigExtension
 {
     public function __construct(
         private AppUrl $appUrl,
+        private RequestStack $requestStack,
         private UrlGeneratorInterface $urlGenerator,
         private StringTwigExtension $stringTwigExtension,
         private SvgsTwigExtension $svgsTwigExtension,
-        // Optional so upstream's own UrlTwigExtensionTest, which constructs this
-        // class with the four arguments above, keeps working.
-        private ?RequestStack $requestStack = null,
     ) {
     }
 
@@ -71,6 +87,28 @@ final readonly class UrlTwigExtension
         return $this->prefixWithRequestBaseUrl(
             RelativeUrl::from($path, $this->appUrl)->toRelativeUrl()
         );
+    }
+
+    #[AsTwigFunction('relativeUrlWithRedirectTo')]
+    public function toRelativeUrlWithRedirectTo(string $path, string $redirectTo): string
+    {
+        $url = $this->prefixWithRequestBaseUrl(RelativeUrl::from($path, $this->appUrl)->toRelativeUrl());
+
+        return $url
+            .(str_contains($url, '?') ? '&' : '?')
+            .RedirectTo::QUERY_PARAM
+            .'='.rawurlencode($this->prefixWithRequestBaseUrl(RelativeUrl::from($redirectTo, $this->appUrl)->toRelativeUrl()));
+    }
+
+    #[AsTwigFunction('redirectUrl')]
+    public function toRedirectUrl(string $default): string
+    {
+        if (!($request = $this->requestStack->getCurrentRequest()) instanceof \Symfony\Component\HttpFoundation\Request) {
+            return $default;
+        }
+        $redirectTo = RedirectTo::fromRequest($request, $this->appUrl);
+
+        return $redirectTo instanceof RedirectTo ? (string) $redirectTo : $default;
     }
 
     /**
@@ -92,7 +130,7 @@ final readonly class UrlTwigExtension
      */
     private function prefixWithRequestBaseUrl(string $url): string
     {
-        $baseUrl = rtrim($this->requestStack?->getCurrentRequest()?->getBaseUrl() ?? '', '/');
+        $baseUrl = rtrim($this->requestStack->getCurrentRequest()?->getBaseUrl() ?? '', '/');
         if ('' === $baseUrl || $url === $baseUrl || str_starts_with($url, $baseUrl.'/')) {
             return $url;
         }

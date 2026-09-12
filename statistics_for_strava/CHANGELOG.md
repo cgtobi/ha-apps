@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.31
+
+- feat: bump Dreeve to v5.3.3 [Changelog](https://github.com/dreeveapp/dreeve/releases)
+
 ## 0.5.30
 
 - feat: new `admin_allowed_ips` option restricts the admin panel to the addresses you name (IPs or CIDR ranges, comma-separated). Anyone else gets a `404` for `/admin`, so it does not even look like there is a panel to log into. Empty by default, which changes nothing. The rest of the app — dashboard, files, the `/api/v1` endpoints — is not affected, and this is a narrowing of who may try the login, not a replacement for `admin_password`. Home Assistant ingress keeps working whatever you list; the add-on always allows the supervisor network on top of your entries, because the check applies to ingress requests too. A malformed entry is refused at startup with the reason in the log, and the restriction is left off rather than making the panel unreachable. Note that `trust_forwarded_headers: true` on a LAN-reachable port undermines this — see DOCS.md.

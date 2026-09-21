@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.33
+
+- feat: bump Dreeve to v5.4.0 [Changelog](https://github.com/dreeveapp/dreeve/releases)
+- feat: updating from an older add-on version no longer leaves you with a broken dashboard. Dreeve v5.4.0 squashed its database migration history and refuses to migrate a database that did not pass through v5.3.3 first — and Home Assistant always updates an add-on straight to the newest version, so that stepping stone cannot be required of you. The add-on now carries v5.3.3's migrations and replays them itself when it finds a database that skipped them; you see a line in the log and nothing else. A database too old even for that (one that predates an earlier squash) stops the update instead: the app is not started, the database is left untouched, and the add-on serves the instructions to get out of it — reinstall the version named there, start it once, update again. Previously that same situation surfaced as a warning ten lines deep in the log while the add-on started anyway against a stale schema, with every page broken and no hint why.
+- chore: the migrations the add-on replays are vendored in the repository instead of copied out of the previous upstream image while building. Pulling that image cost ~370MB for 160K of files on every build, a rebuild on your own Home Assistant box included. The build checks they are intact and came from the image the Dockerfile names.
+- chore: the two migration ids the check compares against are read out of the image at build time rather than written down in the add-on. Upstream rewrites both whenever it squashes again; a copy here would keep matching the previous squash and wave through exactly the update it exists to catch. The build also fails if the stashed migrations cannot reach the baseline the image asks for, or if they import a class the new image no longer has.
+
 ## 0.5.32
 
 - fix: the overridden `UrlTwigExtension.php` is resynced with v5.3.3, which added the `relativeUrlWithRedirectTo` and `redirectUrl` Twig functions and now injects `RequestStack` itself. Without them the admin activity overview and every page carrying an admin edit link fail to render. Under ingress both the link and the `redirectTo` it carries are prefixed with the ingress base path, so returning from an edit lands back inside the session instead of at the Home Assistant host root.

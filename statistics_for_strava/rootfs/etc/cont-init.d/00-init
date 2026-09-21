@@ -253,6 +253,24 @@ export IMPORT_MODE APP_URL APP_SECRET ADMIN_USERNAME ADMIN_PASSWORD_HASH
 [ -n "$STRAVA_REFRESH_TOKEN" ] && export STRAVA_REFRESH_TOKEN
 [ -n "$TZ_VALUE" ]             && export TZ="$TZ_VALUE"
 
+# Upstream squashes its migration history every few releases, and refuses to
+# migrate a database that did not come through the release right before the
+# squash. Home Assistant updates an add-on straight to the newest version in the
+# repository, so that stepping stone cannot be required of the user — the gate
+# either replays the stashed pre-squash migrations itself, or stops the boot here
+# so start.sh can serve the instructions instead of a half-working app.
+GATE_RC=0
+sh /usr/local/bin/sfs-migration-gate.sh || GATE_RC=$?
+if [ "$GATE_RC" -eq 3 ]; then
+  fatal "Add-on update skipped a required Dreeve version; not starting the app (see the warnings above)"
+  # 0, not 3: a non-zero init kills start.sh, and the supervisor would restart the
+  # add-on in a loop with nobody able to read why. Blocked mode is a running
+  # add-on that serves the reason.
+  exit 0
+elif [ "$GATE_RC" -ne 0 ]; then
+  warn "Migration gate exited with ${GATE_RC}; continuing"
+fi
+
 # Run the fast config phase (migrate only); start.sh backgrounds the data phase.
 if ! SFS_RECONCILE_PHASE=config sh /usr/local/bin/sfs-reconcile-config.sh; then
   fatal "Database migration failed during init"

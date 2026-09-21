@@ -113,6 +113,17 @@ if [ -f "$OPTIONS_FILE" ]; then
   fi
 fi
 
+# 00-init leaves this marker when the database skipped the Dreeve release that
+# upstream's squashed migration history requires (see sfs-migration-gate.sh).
+# Serve the explanation and nothing else: no app, no daemon, no import. The
+# alternative — exiting — restart-loops under the watchdog with the reason
+# scrolling past in the log.
+if [ -f /data/runtime/upgrade-blocked ]; then
+  log "Blocked mode: the update skipped a required Dreeve version, serving the upgrade instructions instead of the app"
+  sed -n '1,10p' /data/runtime/upgrade-blocked | while IFS= read -r line; do log "  ${line}"; done
+  exec frankenphp run --config /etc/frankenphp/Caddyfile.blocked
+fi
+
 # APP_URL, APP_SECRET and ADMIN_PASSWORD_HASH are resolved by 00-init (APP_URL is
 # defaulted when the option is empty; the other two are generated/computed) and
 # persisted under /data/runtime. Read them back here so the services get the same

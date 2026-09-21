@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Update step missing</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    padding: 2rem 1rem calc(2rem + env(safe-area-inset-bottom, 0px));
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #f6f7f9;
+    color: #16181d;
+  }
+  main { max-width: 42rem; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 1rem; }
+  code { background: rgba(127, 127, 127, .18); padding: .1em .35em; border-radius: .25em; }
+  ol { padding-left: 1.2rem; }
+  li { margin-bottom: .5rem; }
+  .note { margin-top: 2rem; font-size: .9rem; opacity: .75; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #14161a; color: #e6e8ec; }
+  }
+</style>
+<main>
+  <h1>This update skipped a required step</h1>
+  <p>
+    Dreeve <code>@@PRE_SQUASH_VERSION@@</code> has to run once against your database before
+    a newer version can use it. Upstream rewrote its database migration history, and
+    <code>@@PRE_SQUASH_VERSION@@</code> is the last release that knows how to bring a database
+    from where yours is to where the new one starts.
+  </p>
+  <p><strong>Your data has not been touched.</strong> The add-on stopped before the app started.</p>
+  <ol>
+    <li>Install add-on version <code>@@PRE_SQUASH_ADDON_VERSION@@</code> again &mdash; restore the
+      Home Assistant backup you took before updating, or roll the add-on back to it.</li>
+    <li>Start it and wait until the dashboard loads. That runs the missing migrations.</li>
+    <li>Update the add-on again. This page will be gone.</li>
+  </ol>
+  <p class="note">
+    The add-on log has the same instructions, with the migration the database is missing.
+  </p>
+</main>

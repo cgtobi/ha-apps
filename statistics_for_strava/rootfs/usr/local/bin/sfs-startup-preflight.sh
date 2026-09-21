@@ -57,6 +57,18 @@ case "$TRUSTED_HEADERS" in
     ;;
 esac
 
+# Which squash the gate is guarding against. Derived from the image at build
+# time, so a log that says nothing here means the guard data never got generated
+# and the gate waved everything through.
+SQUASH_GUARD="/usr/local/share/sfs/squash-guard.env"
+if [ -r "$SQUASH_GUARD" ]; then
+  # shellcheck disable=SC1090
+  . "$SQUASH_GUARD"
+  log "OK migration guard: squash=${SFS_SQUASHED_MIGRATION_ID}, baseline=${SFS_LAST_MIGRATION_BEFORE_SQUASH_ID} (stepping stone ${SFS_PRE_SQUASH_VERSION})"
+else
+  warn "Migration squash guard data missing: ${SQUASH_GUARD}"
+fi
+
 if [ -r "$RECONCILE_STATUS" ]; then
   log "Reconcile status:"
   sed -n '1,3p' "$RECONCILE_STATUS" | sed "s/^/$(timestamp) [preflight]   /"

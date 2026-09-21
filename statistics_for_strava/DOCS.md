@@ -160,6 +160,15 @@ If you are upgrading an existing add-on install from the old YAML-based configur
    - **Images referenced from YAML** (gear and gear-maintenance images) — re-upload them.
    - **Gear purchase prices** — re-enter them on the gear pages.
 
+## Skipped updates
+
+Dreeve occasionally rewrites its database migration history ("squashes" it). A release that has done so can only migrate a database that came through the release right before the squash — Dreeve v5.3.3, in the case of v5.4.0. Home Assistant always updates an add-on straight to the newest version, so it cannot be asked to stop at an intermediate one; the add-on deals with this itself.
+
+- **Normally you notice nothing.** If your database is behind, the add-on replays the missing migrations from the previous Dreeve version, which it carries for exactly this purpose, and then starts as usual. The log says so.
+- **If the database is too old for that**, the add-on stops before the app starts, leaves the database untouched, and serves a page with instructions instead of the dashboard (the same instructions go to the log). You then reinstall the add-on version named there — restore a backup of it, or roll back — start it once so its migrations run, and update again.
+
+Take a Home Assistant backup before updating the add-on. It is what makes the roll-back above a one-click affair, and it is worth having for any update that touches the database.
+
 ## Runtime model
 
 This add-on runs both required processes inside one container:

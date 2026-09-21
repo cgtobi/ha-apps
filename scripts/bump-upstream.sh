@@ -157,6 +157,14 @@ check_sync() {
     fail=1
   fi
 
+  # Add-ons that vendor upstream's pre-squash migrations: the copy must still match
+  # the image the Dockerfile names, and must not have been edited in place.
+  if [ -d "${ADDON_DIR}/pre-squash-migrations" ]; then
+    if ! sh "${ROOT_DIR}/scripts/sync-pre-squash-migrations.sh" verify "$ADDON"; then
+      fail=1
+    fi
+  fi
+
   if [ ! -x "$CHECK_SCRIPT" ]; then
     echo "ERROR: missing executable ${CHECK_SCRIPT}" >&2
     fail=1

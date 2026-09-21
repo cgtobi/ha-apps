@@ -1,0 +1,45 @@
+# Blocked mode: served instead of the app when sfs-migration-gate.sh finds a
+# database that never went through the pre-squash release (see that script).
+#
+# The add-on deliberately stays up rather than exiting. Exiting would restart-loop
+# under the HA watchdog with the reason scrolling past in the log; staying up puts
+# the instructions in the sidebar panel, where the user is already looking.
+#
+# No php directive and no worker anywhere below: the app is exactly what must not
+# boot here.
+{
+	http_port 8080
+	auto_https off
+
+	log {
+		output stdout
+		format console
+		level {$CADDY_LOG_LEVEL:ERROR}
+	}
+}
+
+(blocked) {
+	# The watchdog must keep seeing a healthy add-on, or the supervisor restarts
+	# it in a loop and the user never gets to read the page.
+	handle /healthz {
+		respond "blocked: add-on update skipped a required Dreeve version" 200
+	}
+
+	# Every other path, ingress sub-paths included, gets the explanation.
+	handle {
+		root * /usr/local/share/sfs/blocked
+		rewrite * /index.html
+		file_server
+	}
+}
+
+# Ingress listener (supervisor-only, see the main Caddyfile for why the port is
+# split out) and the optional published port. Neither needs forwarded-header
+# handling here: nothing on this page is URL-generated.
+:8099 {
+	import blocked
+}
+
+:8080 {
+	import blocked
+}

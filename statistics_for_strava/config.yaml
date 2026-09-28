@@ -1,5 +1,5 @@
 name: "Dreeve"
-version: "0.5.34"
+version: "0.5.35"
 slug: "statistics_for_strava"
 description: "Dashboard for your sports & fitness data"
 url: "https://github.com/dreeveapp/dreeve"
@@ -49,6 +49,7 @@ options:
   admin_password: ""
   admin_allowed_ips: ""
   dreeve_api_key: ""
+  ai_api_key: ""
   trust_forwarded_headers: false
   expose_share: false
   caddy_log_level: "ERROR"
@@ -64,6 +65,7 @@ schema:
   admin_password: password
   admin_allowed_ips: str?
   dreeve_api_key: password?
+  ai_api_key: password?
   trust_forwarded_headers: bool
   expose_share: bool
   caddy_log_level: "list(DEBUG|INFO|WARN|ERROR)"

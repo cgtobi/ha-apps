@@ -40,6 +40,10 @@ configuration:
     name: API-Schlüssel
     description: >-
       Bearer-Token für die `/api/v1`-HTTP-API der App (Upload von Aktivitäten, genutzt von GadgetBridge). Leer lassen, um die API geschlossen zu halten; jede Anfrage wird dann abgelehnt. Einen Schlüssel erzeugst du im Admin-Panel unter Einstellungen, Sicherheit. Über Ingress ist die API nicht erreichbar, dafür muss der Port `8080/tcp` freigegeben sein.
+  ai_api_key:
+    name: API-Schlüssel für den KI-Assistenten
+    description: >-
+      API-Schlüssel für den KI-Trainingsassistenten, wenn er über einen Cloud-Anbieter läuft (Anthropic, OpenAI, Gemini, Mistral, OpenRouter und weitere). Ein selbst gehostetes `ollama` braucht keinen Schlüssel, dafür lässt du das Feld leer. Welcher Anbieter und welches Modell verwendet werden, stellst du im Admin-Panel unter Einstellungen, Integrationen ein; nur dieser Schlüssel liegt hier. Der Assistent ist ausschließlich über Home Assistant Ingress erreichbar, nicht über Port `8080/tcp`.
   trust_forwarded_headers:
     name: Forwarded-Header am Direktport vertrauen
     description: >-

@@ -111,6 +111,18 @@ if [ -f "$OPTIONS_FILE" ]; then
       *) log "WARN: dreeve_api_key does not look like an app-generated key (expected a drv_... value); the API will reject every request" ;;
     esac
   fi
+
+  # API key for the AI workout assistant's cloud providers (provider and model
+  # live in the app's admin panel, Settings -> Integrations; this key is the one
+  # piece of that config the app takes from the environment). Exported even when
+  # empty, unlike every other option here, and deliberately so: upstream reads it
+  # as $_SERVER['AI_API_KEY'] ?? 'replace-me', so an ABSENT variable becomes that
+  # literal string, which its own "API key cannot be empty" check then accepts as
+  # a real key -- saving a cloud provider succeeds and every chat turn comes back
+  # a 401 from the provider instead. An empty string is what makes the admin panel
+  # refuse the save and say why. The ollama provider takes no key and is
+  # unaffected either way.
+  export AI_API_KEY="$(jq -r '.ai_api_key // ""' "$OPTIONS_FILE")"
 fi
 
 # 00-init leaves this marker when the database skipped the Dreeve release that

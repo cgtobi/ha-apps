@@ -40,6 +40,10 @@ configuration:
     name: API key
     description: >-
       Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Leave empty to keep the API closed; every request is then rejected. Generate a key in the admin panel under Settings, Security. The API is not reachable through ingress, it needs port `8080/tcp` exposed.
+  ai_api_key:
+    name: AI assistant API key
+    description: >-
+      API key for the AI workout assistant, when it runs on a cloud provider (Anthropic, OpenAI, Gemini, Mistral, OpenRouter and the rest). A self-hosted `ollama` needs no key, leave this empty for it. Which provider and model to use is set in the admin panel under Settings, Integrations; this key is the only part of it that lives here. The assistant is reachable through Home Assistant ingress only, not on port `8080/tcp`.
   trust_forwarded_headers:
     name: Trust forwarded headers on the direct port
     description: >-

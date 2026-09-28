@@ -204,5 +204,21 @@
 	request_header -X-Forwarded-Prefix
 	import {$SFS_FORWARDED_MODE:strip_forwarded}
 
+	# The AI workout assistant is not served here. Its routes are absent from
+	# upstream's security.yaml access_control -- unlike /admin and /api/v1 they take
+	# no login and no key -- while its tools read the athlete's activity data and
+	# every turn spends the user's API credits. The ingress listener above sits
+	# behind a Home Assistant session and keeps the full feature, SSE included; this
+	# port is reachable by anything on the LAN, so the assistant stays off it.
+	#
+	# `error` rather than `respond` so the app's own 404 page is rendered by the
+	# handle_errors block in (app). The profile dropdown still shows the entry here:
+	# that template is upstream's and keys off a database setting the add-on cannot
+	# see, so the link leads to that 404.
+	@chat path /chat /chat/*
+	handle @chat {
+		error 404
+	}
+
 	import app
 }

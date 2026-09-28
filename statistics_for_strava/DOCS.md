@@ -66,6 +66,7 @@ The add-on options are intentionally minimal — they cover only what the app ne
 | `admin_password` | Login password for the admin panel, provided in plaintext here. The add-on hashes it internally into the app's `ADMIN_PASSWORD_HASH`; the plaintext is never stored in the app itself. Required — the admin panel needs a login before it can be used. |
 | `admin_allowed_ips` | Optional comma-separated list of IP addresses or CIDR ranges allowed to reach the admin panel. Empty (the default) means no restriction. See "Restricting the admin panel by IP" below. |
 | `dreeve_api_key` | Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Optional — leave empty and the API rejects every request. Generate a key in the admin panel under Settings → Security and paste it here. See "The `/api/v1` HTTP API" below. |
+| `ai_api_key` | API key for the AI workout assistant when it runs on a cloud provider. Optional — a self-hosted `ollama` needs no key, and the assistant is off entirely until you enable it in the admin panel. See "The AI workout assistant" below. |
 | `trust_forwarded_headers` | Whether the app believes `X-Forwarded-*` headers on the direct `8080/tcp` port. Default `false`, which is right unless you put your own reverse proxy in front of that port — see "Direct port access and reverse proxies" below. Ingress is unaffected. |
 | `expose_share` | Expose the file-import watch dir over the add-on's mapped config dir (SMB/CIFS) so you can drop activity files into it. Used with `import_mode: files`. |
 | `caddy_log_level` | Log verbosity for the embedded web server: `DEBUG`, `INFO`, `WARN`, or `ERROR`. |
@@ -120,6 +121,38 @@ in front of it.
 Uploaded files land in the same watch directory the file-import modes use, so they are picked up by
 the next import pass.
 
+## The AI workout assistant
+
+Dreeve can hand your activity data to an LLM and let you ask it questions. Which provider and model
+to use, whether the chat appears in the UI at all, and any custom chat commands are configured
+**inside the app**, in the admin panel under Settings → Integrations. `ai_api_key` is the one piece
+of that configuration the app reads from its environment instead, which is why it is an add-on
+option.
+
+1. Put your provider's key in `ai_api_key` and restart the add-on. Leave it empty for `ollama`,
+   which takes no key.
+2. In the admin panel, go to Settings → Integrations, choose the provider and model, and turn the
+   assistant's UI on.
+3. Open the Web UI and pick **Workout assistant** from the profile menu, top right.
+
+Worth knowing:
+
+- **Save the settings with `ai_api_key` empty and a cloud provider selected and the app refuses,
+  with "API key cannot be empty".** That is the intended signal that the option is not set yet.
+- **The assistant is served through Home Assistant ingress only.** Its pages take no login of their
+  own — unlike `/admin` and `/api/v1`, the app does not gate them — and its tools can read your
+  activities, gear and athlete details while every message spends your API credits. Ingress puts a
+  Home Assistant login in front of that; the direct `8080/tcp` port would not, so the add-on answers
+  `404` there. The profile menu still lists the entry when you browse that port, because that menu
+  comes from the app and the app does not know; the link lands on the 404 page.
+- **A self-hosted `ollama` is not on `localhost` from the add-on's point of view.** Inside the
+  container that address is the container itself. Use the Home Assistant host's LAN address
+  (`http://192.168.1.10:11434/api`), or, if `ollama` runs as another add-on, its name on the
+  Supervisor network.
+- **The key is shown in plaintext** in the admin panel's Integrations page, in a disabled field, and
+  is stored in `/data/options.json` like every other option.
+
+
 ## Direct port access and reverse proxies
 
 Home Assistant ingress and the optional `8080/tcp` port are served by two separate
@@ -146,7 +179,7 @@ are always stripped there. Use a dedicated hostname, or use ingress.
 
 ## Configuring the app
 
-Once the add-on is running, open the Web UI and go to `/admin` to sign in with `admin_username` / `admin_password` and configure everything else: appearance and locale, dashboard layout, metrics, gear and gear maintenance, integrations (AI, notifications, etc.), and the import/build schedule. None of this lives in add-on options anymore.
+Once the add-on is running, open the Web UI and go to `/admin` to sign in with `admin_username` / `admin_password` and configure everything else: appearance and locale, dashboard layout, metrics, gear and gear maintenance, integrations (AI, notifications, etc.), and the import/build schedule. Apart from the two keys above — `dreeve_api_key` and `ai_api_key`, which the app reads from its environment — none of this lives in add-on options anymore.
 
 ## Upgrading from Statistics for Strava (v4)
 

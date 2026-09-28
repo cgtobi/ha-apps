@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.35
+
+- feat: new `ai_api_key` option makes Dreeve's AI workout assistant usable. The app takes the key for every cloud provider — Anthropic, OpenAI, Gemini, Mistral, OpenRouter and the rest — from its environment, and the add-on had no way to pass one, so only a self-hosted `ollama` could ever work. Which provider and model to use, and whether the chat shows up at all, stays where it was: the admin panel, under Settings → Integrations. Leave the option empty and nothing changes; a cloud provider then refuses to save, saying the key is empty, instead of accepting the settings and failing on every message you send. See DOCS.md.
+- feat: the assistant is served through Home Assistant ingress only, and answers `404` on the direct `8080/tcp` port. Its pages take no login of their own — the app gates `/admin` and `/api/v1`, not these — while its tools read your activities, gear and athlete details, and every message spends your API credits. Ingress puts a Home Assistant login in front of that; the published port puts nothing. The profile menu still lists the entry when you browse that port: it comes from the app, which does not know, so the link lands on the 404 page.
+
 ## 0.5.34
 
 - feat: bump Dreeve to v5.4.1 [Changelog](https://github.com/dreeveapp/dreeve/releases)

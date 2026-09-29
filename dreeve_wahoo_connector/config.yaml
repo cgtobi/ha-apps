@@ -1,5 +1,5 @@
 name: "Dreeve Wahoo Connector"
-version: "0.1.1"
+version: "0.1.2"
 slug: "dreeve_wahoo_connector"
 description: "Imports Wahoo workouts into Dreeve"
 url: "https://github.com/dreeveapp/dreeve-wahoo-connector"
@@ -33,8 +33,13 @@ watchdog: "tcp://[HOST]:[PORT:8085]"
 
 # Write access to every add-on's config dir, so this add-on can deliver into the Dreeve add-on's
 # watch folder (which lives there when the Dreeve add-on has expose_share enabled).
+# The path is pinned because all_app_configs mounts at /app_configs by default; its predecessor
+# all_addon_configs mounted at /addon_configs, which the watch-dir auto-detection and any
+# watch_dir option set by hand still point at.
 map:
-  - all_addon_configs:rw
+  - type: all_app_configs
+    read_only: false
+    path: /addon_configs
 
 options:
   wahoo_client_id: ""

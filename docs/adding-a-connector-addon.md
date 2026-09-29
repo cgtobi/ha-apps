@@ -37,7 +37,7 @@ providers they use.
 | File | Notes |
 |---|---|
 | `Dockerfile` | `ARG BUILD_FROM=<upstream image>:<tag>` carrying its own default — Supervisor stopped providing `BUILD_FROM` automatically in 2026.04.0 — then `FROM ${BUILD_FROM}`; a liveness `HEALTHCHECK` replacing upstream's (never `HEALTHCHECK NONE` — see below); `ENTRYPOINT ["/usr/local/bin/ha-start.sh"]` with `CMD []` |
-| `config.yaml` | `map: [all_addon_configs:rw]`, `stage: experimental` while the provider API is unofficial, `watchdog: "tcp://[HOST]:[PORT:<upstream's port>]"` — 8080 on garmin and polar, 8085 on wahoo |
+| `config.yaml` | `map: [{type: all_app_configs, read_only: false, path: /addon_configs}]` — the path pinned because `all_app_configs` alone mounts at `/app_configs`, and `watchdir.py` looks under `/addon_configs` (Supervisor ≥ 2026.07.1; the legacy `all_addon_configs:rw` still works but logs a deprecation warning), `stage: experimental` while the provider API is unofficial, `watchdog: "tcp://[HOST]:[PORT:<upstream's port>]"` — 8080 on garmin and polar, 8085 on wahoo |
 | `.upstream-version` | The pinned **image** tag, e.g. `v1.0.0`, `0.1.0` or `sha-4ed0b56` — whatever the upstream registry actually serves, which is not always the git tag |
 | `.upstream-repo` | `image_repo`, `git_url`, `display_name`, `changelog_url`, `tag_prefix` — read by `scripts/bump-upstream.sh` |
 | `config.yaml` + `CHANGELOG.md` | Must agree; `.githooks/pre-commit` enforces it per add-on |

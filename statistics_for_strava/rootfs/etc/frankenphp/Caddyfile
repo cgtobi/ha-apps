@@ -212,13 +212,21 @@
 	# port is reachable by anything on the LAN, so the assistant stays off it.
 	#
 	# `error` rather than `respond` so the app's own 404 page is rendered by the
-	# handle_errors block in (app). The profile dropdown still shows the entry here:
-	# that template is upstream's and keys off a database setting the add-on cannot
-	# see, so the link leads to that 404.
+	# handle_errors block in (app).
 	@chat path /chat /chat/*
 	handle @chat {
 		error 404
 	}
+
+	# The profile dropdown still shows the entry here: that template is upstream's
+	# and keys off a database setting the add-on cannot see. Clicking it never
+	# requests /chat. The client-side router fetches the page as a fragment from
+	# /api/internal/fragment/page/chat, which @chat does not match. Left open, that
+	# renders the assistant on this port, chat history included, and only a reload
+	# (a real request for /chat) reaches the 404. Rewritten to a fragment nothing
+	# registers, so the app answers with its own not-found page inside the shell.
+	@chatFragment path_regexp (?i)^/api/internal/fragment/[^/]+/chat(/.*)?$
+	rewrite @chatFragment /api/internal/fragment/page/not-found
 
 	import app
 }

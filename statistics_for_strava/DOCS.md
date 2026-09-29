@@ -144,7 +144,7 @@ Worth knowing:
   activities, gear and athlete details while every message spends your API credits. Ingress puts a
   Home Assistant login in front of that; the direct `8080/tcp` port would not, so the add-on answers
   `404` there. The profile menu still lists the entry when you browse that port, because that menu
-  comes from the app and the app does not know; the link lands on the 404 page.
+  comes from the app and the app does not know; the link lands on a "not found" page.
 - **A self-hosted `ollama` is not on `localhost` from the add-on's point of view.** Inside the
   container that address is the container itself. Use the Home Assistant host's LAN address
   (`http://192.168.1.10:11434/api`), or, if `ollama` runs as another add-on, its name on the

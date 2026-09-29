@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.37
+
+- fix: the AI workout assistant is now actually off the direct `8080/tcp` port. 0.5.35 blocked `/chat` there, but clicking the profile-menu entry never requests `/chat`: the app loads the page in the background from a separate internal address, and that address was left open. So on the direct port the assistant opened, with your whole chat history, and only a reload (which does request `/chat`) showed the 404. Sending a message already failed there, so no API credits could be spent, but anyone on your network could read past conversations. The entry now opens the app's own "not found" page, the same as a reload. Through Home Assistant ingress nothing changes
+
 ## 0.5.36
 
 - chore: map the add-on's own config dir with `app_config` instead of `addon_config`, which Supervisor 2026.07.1 deprecated and now warns about in the log. It is still mounted at `/config`, so the file-import watch folder (`expose_share`) is where it was. Requires Supervisor 2026.07.1 or newer; an older one skips the mapping, and the watch folder then is not shared

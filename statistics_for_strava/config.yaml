@@ -1,5 +1,5 @@
 name: "Dreeve"
-version: "0.5.35"
+version: "0.5.36"
 slug: "statistics_for_strava"
 description: "Dashboard for your sports & fitness data"
 url: "https://github.com/dreeveapp/dreeve"
@@ -33,7 +33,7 @@ watchdog: "http://[HOST]:[PORT:8080]/healthz"
 # file-import watch directory (expose_share). Scoped to this add-on's dir
 # only (not all of /share).
 map:
-  - addon_config:rw
+  - app_config:rw
 
 # In v5, the app's configuration lives in its database and is edited via the
 # built-in admin panel, not via add-on options. These options are just the

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.36
+
+- chore: map the add-on's own config dir with `app_config` instead of `addon_config`, which Supervisor 2026.07.1 deprecated and now warns about in the log. It is still mounted at `/config`, so the file-import watch folder (`expose_share`) is where it was. Requires Supervisor 2026.07.1 or newer; an older one skips the mapping, and the watch folder then is not shared
+
 ## 0.5.35
 
 - feat: new `ai_api_key` option makes Dreeve's AI workout assistant usable. The app takes the key for every cloud provider — Anthropic, OpenAI, Gemini, Mistral, OpenRouter and the rest — from its environment, and the add-on had no way to pass one, so only a self-hosted `ollama` could ever work. Which provider and model to use, and whether the chat shows up at all, stays where it was: the admin panel, under Settings → Integrations. Leave the option empty and nothing changes; a cloud provider then refuses to save, saying the key is empty, instead of accepting the settings and failing on every message you send. See DOCS.md.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.38
+
+- feat: bump Dreeve to v5.4.4 [Changelog](https://github.com/dreeveapp/dreeve/releases)
+
 ## 0.5.37
 
 - fix: the AI workout assistant is now actually off the direct `8080/tcp` port. 0.5.35 blocked `/chat` there, but clicking the profile-menu entry never requests `/chat`: the app loads the page in the background from a separate internal address, and that address was left open. So on the direct port the assistant opened, with your whole chat history, and only a reload (which does request `/chat`) showed the 404. Sending a message already failed there, so no API credits could be spent, but anyone on your network could read past conversations. The entry now opens the app's own "not found" page, the same as a reload. Through Home Assistant ingress nothing changes

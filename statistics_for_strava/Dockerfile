@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve:v5.4.1
+ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve:v5.4.4
 
 # Where the vendored pre-squash migrations came from. They are the migrations of
 # the upstream release immediately before the migration squash BUILD_FROM carries,

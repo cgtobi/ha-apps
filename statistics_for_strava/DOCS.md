@@ -209,7 +209,7 @@ This add-on runs both required processes inside one container:
 - Web UI: `frankenphp` on port `8080`
 - Scheduler/daemon: `bin/console app:daemon:run`
 - Health endpoint: `GET /healthz` on port `8080` (used by Home Assistant watchdog; returns `503` if required runtime paths are unavailable or the daemon process is not alive; includes a short startup grace period to avoid flapping)
-- Static assets (`/assets/*`, `/css/*`, `/js/*`, `/libraries/*`) are served from Symfony `public/`; every page and page fragment is rendered on request by the app itself (Dreeve v5.2.0 dropped pre-built HTML).
+- Static assets (`/assets/*`, `/css/*`, `/js/*`, `/libraries/*`) are served from Symfony `public/`; every page is rendered on request by the app itself (Dreeve v5.2.0 dropped pre-built HTML).
 
 ## Persistent directories
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.39
+
+- fix: the add-on builds again on Dreeve v5.4.4. 0.5.38 failed to install with "src/Application/IndexPage.php overrides a file the upstream image does not have". v5.4.4 replaced the single-page shell with server-rendered pages, so the add-on's ingress patches moved with it: the base path the app's scripts use (AI assistant, chart click-throughs) is now set in the overridden `AppShell.php`, and the overridden `CacheableRenderer.php` and `UrlTwigExtension.php` are resynced with v5.4.4.
+- chore: the direct-port rule that redirected the AI assistant's old background page address to "not found" is removed. That address no longer exists in v5.4.4; every assistant route sits under `/chat`, which stays blocked on `8080/tcp`.
+
 ## 0.5.38
 
 - feat: bump Dreeve to v5.4.4 [Changelog](https://github.com/dreeveapp/dreeve/releases)

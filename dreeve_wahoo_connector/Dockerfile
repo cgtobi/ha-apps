@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-wahoo-connector:sha-4ed0b56
+ARG BUILD_FROM=ghcr.io/dreeveapp/dreeve-wahoo-connector:sha-423b67e
 FROM ${BUILD_FROM}
 
 LABEL \

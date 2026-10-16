@@ -18,6 +18,16 @@
 #      ApiFragmentRequestHandler into App\Controller\Api\Internal and the
 #      stale import in IndexPage.php would have been a fatal on every render.
 #
+#   3. The config/packages/flysystem.yaml override drifts from upstream's storage
+#      list. flysystem-bundle autowires each `FilesystemOperator $xStorage`
+#      param by storage key, and an unmatched param silently falls back to
+#      default.storage (/var/www) — no error, writes land in the container layer
+#      and reads come up empty. Our copy may only redirect `directory:` for
+#      file.storage and database.storage; everything else must be upstream's
+#      verbatim. Both drifts went unnoticed: upstream re-added build.storage in
+#      v5.2.1 and we never mapped it, and v5.6.0 moved countries-geography.storage
+#      to %kernel.project_dir%/resources/countries while ours kept the old path.
+#
 # Run from the Dockerfile with the rootfs staged (not yet installed), so both
 # the upstream file and our copy are readable at once.
 #
@@ -73,6 +83,85 @@ if [ -n "$STAGE" ]; then
     [ -z "$unknown" ] \
       || fail "$rel imports ${unknown}which the upstream image does not have (upstream renamed or moved it — resync the override)"
   done
+fi
+
+# --- flysystem.yaml override: same storages as upstream, only data dirs moved --
+#
+# Parsed with symfony/yaml from the image's own vendor dir (the image has no
+# yq/python, and a text diff would trip over quoting and key order). Storage
+# blocks are compared as normalized arrays — adapter, options, visibility, all
+# of it — with options.directory excluded only for the two storages we redirect.
+#
+# Skipped when no staging dir is given or we do not override the file.
+if [ -n "$STAGE" ] && [ -f "$STAGE/var/www/config/packages/flysystem.yaml" ]; then
+  upstream=/var/www/config/packages/flysystem.yaml
+  ours="$STAGE/var/www/config/packages/flysystem.yaml"
+
+  [ -f "$upstream" ] \
+    || fail "config/packages/flysystem.yaml overrides a file the upstream image does not have (upstream renamed or moved it — resync the override)"
+
+  drift="$(php -- "$upstream" "$ours" <<'PHP'
+<?php
+require '/var/www/vendor/autoload.php';
+
+use Symfony\Component\Yaml\Yaml;
+
+// Storages whose directory we redirect to /data; nothing else may differ.
+$redirected = ['file.storage', 'database.storage'];
+
+$storages = static function (string $path): array {
+    try {
+        $yaml = Yaml::parseFile($path);
+    } catch (\Throwable $e) {
+        echo "cannot parse $path: {$e->getMessage()}\n";
+        exit(0);
+    }
+    $s = $yaml['flysystem']['storages'] ?? null;
+    if (!is_array($s)) {
+        echo "$path has no flysystem: storages: map\n";
+        exit(0);
+    }
+    return $s;
+};
+
+$normalize = static function ($v) use (&$normalize) {
+    if (!is_array($v)) {
+        return $v;
+    }
+    ksort($v);
+    return array_map($normalize, $v);
+};
+
+$up = $storages($argv[1]);
+$ours = $storages($argv[2]);
+
+$missing = array_diff(array_keys($up), array_keys($ours));
+$extra = array_diff(array_keys($ours), array_keys($up));
+if ($missing) {
+    echo 'missing storage(s) upstream has: ', implode(' ', $missing), "\n";
+}
+if ($extra) {
+    echo 'extra storage(s) upstream does not have: ', implode(' ', $extra), "\n";
+}
+
+foreach (array_intersect(array_keys($up), array_keys($ours)) as $key) {
+    $u = $up[$key];
+    $o = $ours[$key];
+    if (in_array($key, $redirected, true)) {
+        unset($u['options']['directory'], $o['options']['directory']);
+    }
+    if ($normalize($u) !== $normalize($o)) {
+        $flags = JSON_UNESCAPED_SLASHES;
+        echo "$key differs from upstream: upstream ", json_encode($up[$key], $flags),
+            ' ours ', json_encode($ours[$key], $flags), "\n";
+    }
+}
+PHP
+)" || fail "config/packages/flysystem.yaml check could not run (php exited non-zero)"
+
+  [ -z "$drift" ] \
+    || fail "config/packages/flysystem.yaml drifted from upstream's storages — resync it against the current image (keys must match; only file/database directory may differ):
+$drift"
 fi
 
 echo "sfs-verify-overrides: ok"

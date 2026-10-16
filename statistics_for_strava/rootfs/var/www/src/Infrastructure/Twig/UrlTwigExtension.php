@@ -25,8 +25,10 @@ use Twig\Attribute\AsTwigFunction;
  * base URL (see prefixWithRequestBaseUrl below). Keep every other method
  * byte-identical to upstream: a stale copy silently drops Twig functions
  * templates call (v5.2.3 added filteredUrl; v5.3.3 added
- * relativeUrlWithRedirectTo and redirectUrl; v5.4.4 added absoluteUrl) or
- * points the app at routes that no longer exist.
+ * relativeUrlWithRedirectTo and redirectUrl; v5.4.4 added absoluteUrl; v5.6.0
+ * rewrote absoluteUrl on AppUrl::withPath) or points the app at routes that no
+ * longer exist. A body change like v5.6.0's slips past sfs-verify-overrides.sh's
+ * literal check, so hand-diff this file against upstream on every bump.
  *
  * relativeUrl() builds root-absolute URLs from APP_URL's base path. Under Home
  * Assistant ingress the base path is not in APP_URL at all: it is a per-session
@@ -55,8 +57,12 @@ use Twig\Attribute\AsTwigFunction;
  * `redirectUrl('')` into a non-empty URL, and the settings forms read that as
  * "no redirect after saving" (data-redirect).
  *
- * absoluteUrl() is upstream-identical too: it is for URLs read outside the app
- * (Open Graph tags, badge embed snippets), which have to be built on APP_URL.
+ * absoluteUrl() is for URLs read outside the app (Open Graph tags, badge embed
+ * snippets), which have to be built on APP_URL. Its callers pass path() output,
+ * which under ingress already carries the per-session
+ * /api/hassio_ingress/<token> prefix; upstream would glue that onto APP_URL and
+ * publish a URL that dies with the session. So the request base URL is stripped
+ * first (see stripRequestBaseUrl below); otherwise it stays upstream-identical.
  *
  * The prefix ends up in rendered HTML that the render cache stores, so
  * CacheableRenderer is overridden as well to key cache entries per base path.
@@ -83,7 +89,7 @@ final readonly class UrlTwigExtension
     #[AsTwigFunction('absoluteUrl')]
     public function toAbsoluteUrl(string $path): string
     {
-        return rtrim((string) $this->appUrl, '/').'/'.ltrim($path, '/');
+        return (string) $this->appUrl->withPath($this->stripRequestBaseUrl($path));
     }
 
     #[AsTwigFunction('relativeUrlWithRedirectTo')]
@@ -133,6 +139,27 @@ final readonly class UrlTwigExtension
         }
 
         return $baseUrl.$url;
+    }
+
+    /**
+     * The inverse of prefixWithRequestBaseUrl(): drop the current request's base
+     * URL from the start of a path()-generated URL, so absoluteUrl() builds on
+     * APP_URL alone instead of APP_URL plus the ingress session prefix.
+     */
+    private function stripRequestBaseUrl(string $url): string
+    {
+        $baseUrl = rtrim($this->requestStack->getCurrentRequest()?->getBaseUrl() ?? '', '/');
+        if ('' === $baseUrl) {
+            return $url;
+        }
+        if ($url === $baseUrl) {
+            return '/';
+        }
+        if (str_starts_with($url, $baseUrl.'/')) {
+            return substr($url, strlen($baseUrl));
+        }
+
+        return $url;
     }
 
     #[AsTwigFunction('placeholderImage')]

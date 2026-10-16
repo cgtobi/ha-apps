@@ -27,3 +27,10 @@ monolog:
           path: "/data/storage/files/logs/webhooks.log"
           level: info
           channels: ["webhooks"]
+        errors:
+          type: rotating_file
+          max_files: 5
+          path: "/data/storage/files/logs/errors.log"
+          level: error
+          channels: ["errors"]
+          formatter: monolog.formatter.errors

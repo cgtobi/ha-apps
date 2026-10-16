@@ -15,8 +15,10 @@
 #
 # Key-set history: v4.8.x split build output into build-html/build_api; v5.0
 # moved gear maintenance into the DB (gear-maintenance.storage dropped); v5.2.0
-# removed the pre-built HTML/API output entirely (build.storage, build-html.storage
-# and build_api.storage dropped) and added countries-geography.storage.
+# removed the pre-built HTML/API output (build.storage, build-html.storage and
+# build_api.storage dropped) and added countries-geography.storage; v5.2.1
+# re-added build.storage (render-cache version marker); v5.6.0 moved
+# countries-geography's directory to resources/countries.
 flysystem:
     storages:
         default.storage:
@@ -32,7 +34,7 @@ flysystem:
         countries-geography.storage:
             adapter: 'local'
             options:
-                directory: '%kernel.project_dir%/src/Domain/Activity/Route/assets/countries'
+                directory: '%kernel.project_dir%/resources/countries'
                 lock: 0
             visibility: public
             directory_visibility: public
@@ -40,4 +42,9 @@ flysystem:
             adapter: 'local'
             options:
                 directory: '/data/storage/database'
+                lock: 0
+        build.storage:
+            adapter: 'local'
+            options:
+                directory: '%kernel.project_dir%/build'
                 lock: 0

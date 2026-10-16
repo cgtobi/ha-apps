@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3
+
+- feat: bump Wahoo connector to sha-423b67e [Changelog](https://github.com/dreeveapp/dreeve-wahoo-connector/commits/main)
+- fix: syncing could fail with `422 Unprocessable Content` from Wahoo. Upstream no longer sends an
+  `order=descending` query parameter to `/v1/workouts`, which the Wahoo Cloud API does not accept;
+  workouts are still fetched newest first, because that is Wahoo's default order
+
 ## 0.1.2
 
 - chore: map every add-on's config dir with `all_app_configs` instead of `all_addon_configs`, which Supervisor 2026.07.1 deprecated and now warns about in the log. The folder stays at `/addon_configs` inside the add-on, so watch-folder auto-detection and a `watch_dir` set by hand keep working unchanged. Requires Supervisor 2026.07.1 or newer; on an older one the add-on no longer shows up in the store

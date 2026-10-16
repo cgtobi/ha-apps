@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.40
+
+- feat: bump Dreeve to v5.6.0 [Changelog](https://github.com/dreeveapp/dreeve/releases)
+- fix: server errors are now logged, to `errors.log` next to the other logs under `/data/storage/files/logs`. The add-on's logging config predated the error log upstream added in v5.3.2, so a "500" page showed a `Reference:` code that matched nothing anywhere: the error itself was dropped.
+- chore: storage config resynced with v5.6.0. The country-boundary asset path moved upstream, and the render-cache version marker storage upstream added in v5.2.1 is now mapped instead of falling back to `/var/www`. No user-visible change.
+- fix: the badge embed snippets on the Badges page, and the page's Open Graph link and image, no longer contain Home Assistant's `/api/hassio_ingress/<token>` session path when you open Dreeve from the sidebar. They are built on `app_url` alone now. Before, a copied snippet pointed at a URL that stopped working once the ingress session ended, and never worked from outside Home Assistant.
+- chore: `absoluteUrl` resynced with v5.6.0, which moved the same URL building into a helper.
+
 ## 0.5.39
 
 - fix: the add-on builds again on Dreeve v5.4.4. 0.5.38 failed to install with "src/Application/IndexPage.php overrides a file the upstream image does not have". v5.4.4 replaced the single-page shell with server-rendered pages, so the add-on's ingress patches moved with it: the base path the app's scripts use (AI assistant, chart click-throughs) is now set in the overridden `AppShell.php`, and the overridden `CacheableRenderer.php` and `UrlTwigExtension.php` are resynced with v5.4.4.

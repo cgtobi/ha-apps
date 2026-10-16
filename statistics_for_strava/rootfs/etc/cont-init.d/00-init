@@ -34,8 +34,9 @@ STARTUP_MARKER_FILE="/data/runtime/health.startup"
 S6_ENV_DIR_1="/var/run/s6/container_environment"
 S6_ENV_DIR_2="/run/s6/container_environment"
 
-# No /data/build here: v5.2.0 removed the pre-built HTML/API output, so the app
-# has no build storage left to persist.
+# No /data/build here: v5.2.0 removed the pre-built HTML/API output. build.storage
+# (back since v5.2.1) holds only the render cache and its version marker, both
+# fine to lose with the container layer: an image update just starts it cold.
 mkdir -p /data/storage/database /data/storage/files/logs /data/storage/gear-maintenance
 mkdir -p /data/runtime
 mkdir -p "$PERSIST_CONFIG_DIR"

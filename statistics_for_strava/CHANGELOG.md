@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.44
+
+- fix: Dreeve's "new version available" popup and sidebar badge (new in v5.7.0) no longer show up. They announce each upstream release as it appears on GitHub and urge you to read its breaking changes before updating, but under Home Assistant you cannot update until a new add-on version carries that release, and Home Assistant announces that one itself. The app also no longer queries the GitHub API for it.
+
 ## 0.5.43
 
 - feat: new `dreeve_mcp_key` option opens Dreeve's read-only MCP server (new in v5.7.0) to AI clients such as Claude Code, Claude Desktop or Cursor. The app takes the key from its environment only, so without the option the server could not be turned on at all. Generate the key in the admin panel under Settings → Security → MCP access, paste it into the option, and point the client at `http://<home-assistant-host>:8080/mcp`. Like the `/api/v1` API it needs the `8080/tcp` port; ingress cannot carry it. The key is the only thing guarding it (the admin IP allowlist does not apply) and the port is plain HTTP, so see DOCS.md before exposing it beyond a trusted network. Leave the option empty and nothing changes: every request is rejected.

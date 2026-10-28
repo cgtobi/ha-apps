@@ -48,6 +48,19 @@
 		?Permissions-Policy "browsing-topics=()"
 	}
 
+	# Upstream's "new version available" notice (v5.7.0) is switched off. On every
+	# page the app asks this endpoint whether GitHub has a newer Dreeve release,
+	# then shows a sidebar badge and, to a logged-in admin, a modal urging them to
+	# read the breaking changes "before you update". Under Home Assistant nobody
+	# can: updates arrive as add-on versions, which trail upstream releases, and
+	# Supervisor already announces those. Answering "no update" here makes the JS
+	# show nothing (it only fetches /api/internal/release-announcement when an
+	# update is reported), and spares the app its GitHub API calls.
+	handle /api/internal/latest-release {
+		header Content-Type application/json
+		respond `{"latestVersion":null,"updateAvailable":false}` 200
+	}
+
 	# Static frontend resources ship inside the image under /var/www/public.
 	#
 	# There is deliberately no handler for /data/build/html here: v5.2.0 dropped

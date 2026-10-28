@@ -257,5 +257,6 @@ This add-on runs both required processes inside one container:
 - The recurring activity import is handled automatically by the add-on's built-in daemon — there is nothing to schedule or configure for this.
 - Runtime secrets (Strava credentials, the admin password hash, the app secret) are injected via container environment only; no `.env.local` secrets file is written.
 - Strava webhooks still require public HTTPS reachability to your webhook endpoint (the Home Assistant ingress URL is not a public webhook endpoint).
+- Dreeve's own "new version available" notice is switched off. It announces upstream releases, which reach you only once a new add-on version ships them; Home Assistant tells you about that one.
 
 For the full application documentation (dashboard configuration, metrics, integrations, and more), see the [Dreeve docs](https://docs.dreeve.app). The upstream project lives at [github.com/dreeveapp/dreeve](https://github.com/dreeveapp/dreeve).

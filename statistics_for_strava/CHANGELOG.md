@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.42
+
+- feat: bump Dreeve to v5.7.0 [Changelog](https://github.com/dreeveapp/dreeve/releases)
+- chore: the overridden `AppShell.php` is resynced with v5.7.0, which added the app version to the constants the page hands its scripts. Without it the add-on does not build on v5.7.0 (the override check catches the stale copy).
+
 ## 0.5.41
 
 - feat: bump Dreeve to v5.6.2 [Changelog](https://github.com/dreeveapp/dreeve/releases)

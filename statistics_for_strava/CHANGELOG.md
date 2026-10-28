@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.45
+
+Notes for updating from 0.5.40 or older; this version itself changes nothing in the add-on.
+
+- security: 0.5.41 and later carry Dreeve v5.6.2, which ships PHP's fix for a critical remote code execution vulnerability ([php2shell](https://sansec.io/research/php2shell)). Anything older is affected.
+- note: the first start after the update recalculates the stream data of every activity in the background (Dreeve v5.6.1). Depending on how many activities you have and your hardware, this takes a few minutes or longer and keeps the CPU busy; some charts and figures are missing or incomplete until it finishes.
+- note: Dreeve v5.7.0 removed the AI assistant's command-line chat (`app:ai:agent-chat`). Use the assistant in the web UI, or connect an AI client through the MCP server (`dreeve_mcp_key`, see 0.5.43).
+
 ## 0.5.44
 
 - fix: Dreeve's "new version available" popup and sidebar badge (new in v5.7.0) no longer show up. They announce each upstream release as it appears on GitHub and urge you to read its breaking changes before updating, but under Home Assistant you cannot update until a new add-on version carries that release, and Home Assistant announces that one itself. The app also no longer queries the GitHub API for it.
@@ -17,6 +25,7 @@
 ## 0.5.41
 
 - feat: bump Dreeve to v5.6.2 [Changelog](https://github.com/dreeveapp/dreeve/releases)
+- security: v5.6.2 ships PHP's fix for a critical remote code execution vulnerability ([php2shell](https://sansec.io/research/php2shell)). Every earlier add-on version is affected; update.
 
 ## 0.5.40
 

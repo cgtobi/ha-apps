@@ -66,6 +66,7 @@ The add-on options are intentionally minimal — they cover only what the app ne
 | `admin_password` | Login password for the admin panel, provided in plaintext here. The add-on hashes it internally into the app's `ADMIN_PASSWORD_HASH`; the plaintext is never stored in the app itself. Required — the admin panel needs a login before it can be used. |
 | `admin_allowed_ips` | Optional comma-separated list of IP addresses or CIDR ranges allowed to reach the admin panel. Empty (the default) means no restriction. See "Restricting the admin panel by IP" below. |
 | `dreeve_api_key` | Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Optional — leave empty and the API rejects every request. Generate a key in the admin panel under Settings → Security and paste it here. See "The `/api/v1` HTTP API" below. |
+| `dreeve_mcp_key` | Bearer token for the app's read-only MCP server at `/mcp`. Optional — leave empty and the MCP server rejects every request. Generate a key in the admin panel under Settings → Security → MCP access and paste it here. See "The MCP server" below. |
 | `ai_api_key` | API key for the AI workout assistant when it runs on a cloud provider. Optional — a self-hosted `ollama` needs no key, and the assistant is off entirely until you enable it in the admin panel. See "The AI workout assistant" below. |
 | `trust_forwarded_headers` | Whether the app believes `X-Forwarded-*` headers on the direct `8080/tcp` port. Default `false`, which is right unless you put your own reverse proxy in front of that port — see "Direct port access and reverse proxies" below. Ingress is unaffected. |
 | `expose_share` | Expose the file-import watch dir over the add-on's mapped config dir (SMB/CIFS) so you can drop activity files into it. Used with `import_mode: files`. |
@@ -120,6 +121,36 @@ in front of it.
 
 Uploaded files land in the same watch directory the file-import modes use, so they are picked up by
 the next import pass.
+
+## The MCP server
+
+Dreeve v5.7.0 added a read-only [MCP](https://modelcontextprotocol.io) server at `/mcp`. It lets an
+AI client you already use — Claude Code, Claude Desktop, Cursor, VS Code — read your activities,
+metrics and settings and answer questions about them. No tool it offers can change anything. It is
+off until you set `dreeve_mcp_key`; without a key every request gets a `401`.
+
+1. Open the admin panel, go to Settings → Security → MCP access, and generate a key (a `drvm_...`
+   value). It is a separate key from `dreeve_api_key`; neither works in place of the other.
+2. Paste it into the `dreeve_mcp_key` add-on option and restart the add-on.
+3. Point your client at `http://<home-assistant-host>:8080/mcp` with
+   `Authorization: Bearer drvm_...`. For Claude Code:
+
+   ```sh
+   claude mcp add --transport http dreeve http://<home-assistant-host>:8080/mcp --header "Authorization: Bearer drvm_..."
+   ```
+
+   Other clients: see [Dreeve's MCP documentation](https://docs.dreeve.app/integrations/mcp/).
+
+As with the `/api/v1` API, the MCP server is **not reachable through Home Assistant ingress** — an
+MCP client has no Home Assistant session — so it needs the `8080/tcp` port exposed.
+
+Two things to keep in mind:
+
+- **The key is the only access control.** It gives read access to all your data, and
+  `admin_allowed_ips` does not apply to `/mcp`. Treat it like a password.
+- **`8080/tcp` is plain HTTP.** The key crosses your network unencrypted on every request. That is
+  fine on a network you trust; anywhere else, put a reverse proxy terminating TLS in front of the
+  port (see "Direct port access and reverse proxies" below).
 
 ## The AI workout assistant
 
@@ -179,7 +210,7 @@ are always stripped there. Use a dedicated hostname, or use ingress.
 
 ## Configuring the app
 
-Once the add-on is running, open the Web UI and go to `/admin` to sign in with `admin_username` / `admin_password` and configure everything else: appearance and locale, dashboard layout, metrics, gear and gear maintenance, integrations (AI, notifications, etc.), and the import/build schedule. Apart from the two keys above — `dreeve_api_key` and `ai_api_key`, which the app reads from its environment — none of this lives in add-on options anymore.
+Once the add-on is running, open the Web UI and go to `/admin` to sign in with `admin_username` / `admin_password` and configure everything else: appearance and locale, dashboard layout, metrics, gear and gear maintenance, integrations (AI, notifications, etc.), and the import/build schedule. Apart from the three keys above — `dreeve_api_key`, `dreeve_mcp_key` and `ai_api_key`, which the app reads from its environment — none of this lives in add-on options anymore.
 
 ## Upgrading from Statistics for Strava (v4)
 

@@ -108,7 +108,23 @@ if [ -f "$OPTIONS_FILE" ]; then
     export DREEVE_API_KEY="$_dreeve_api_key"
     case "$_dreeve_api_key" in
       drv_*) ;;
+      drvm_*) log "WARN: dreeve_api_key holds an MCP key (drvm_...); it belongs in dreeve_mcp_key, the API will reject every request" ;;
       *) log "WARN: dreeve_api_key does not look like an app-generated key (expected a drv_... value); the API will reject every request" ;;
+    esac
+  fi
+
+  # Bearer token for the upstream /mcp endpoint (v5.7.0, read-only MCP server).
+  # Same contract as DREEVE_API_KEY above, with its own key and prefix: only
+  # exported when set, and an empty one makes upstream reject every request.
+  # Generated in the admin panel (Settings -> Security -> MCP access). Like the
+  # API, only usable on the direct :8080 port: an MCP client has no HA session.
+  _dreeve_mcp_key="$(jq -r '.dreeve_mcp_key // ""' "$OPTIONS_FILE")"
+  if [ -n "$_dreeve_mcp_key" ]; then
+    export DREEVE_MCP_KEY="$_dreeve_mcp_key"
+    case "$_dreeve_mcp_key" in
+      drvm_*) ;;
+      drv_*) log "WARN: dreeve_mcp_key holds an API key (drv_...); it belongs in dreeve_api_key, the MCP server will reject every request" ;;
+      *) log "WARN: dreeve_mcp_key does not look like an app-generated key (expected a drvm_... value); the MCP server will reject every request" ;;
     esac
   fi
 

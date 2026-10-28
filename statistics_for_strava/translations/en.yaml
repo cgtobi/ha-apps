@@ -40,6 +40,10 @@ configuration:
     name: API key
     description: >-
       Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Leave empty to keep the API closed; every request is then rejected. Generate a key in the admin panel under Settings, Security. The API is not reachable through ingress, it needs port `8080/tcp` exposed.
+  dreeve_mcp_key:
+    name: MCP key
+    description: >-
+      Bearer token for the app's read-only MCP server at `/mcp`, which lets AI clients such as Claude Code, Claude Desktop or Cursor read your activities and metrics. Leave empty to keep it closed; every request is then rejected. Generate a key in the admin panel under Settings, Security, MCP access. Not reachable through ingress, it needs port `8080/tcp` exposed. The admin panel IP allowlist does not apply to it.
   ai_api_key:
     name: AI assistant API key
     description: >-

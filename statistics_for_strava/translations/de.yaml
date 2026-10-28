@@ -40,6 +40,10 @@ configuration:
     name: API-Schlüssel
     description: >-
       Bearer-Token für die `/api/v1`-HTTP-API der App (Upload von Aktivitäten, genutzt von GadgetBridge). Leer lassen, um die API geschlossen zu halten; jede Anfrage wird dann abgelehnt. Einen Schlüssel erzeugst du im Admin-Panel unter Einstellungen, Sicherheit. Über Ingress ist die API nicht erreichbar, dafür muss der Port `8080/tcp` freigegeben sein.
+  dreeve_mcp_key:
+    name: MCP-Schlüssel
+    description: >-
+      Bearer-Token für den schreibgeschützten MCP-Server der App unter `/mcp`, über den KI-Clients wie Claude Code, Claude Desktop oder Cursor deine Aktivitäten und Kennzahlen lesen können. Leer lassen, um ihn geschlossen zu halten; jede Anfrage wird dann abgelehnt. Einen Schlüssel erzeugst du im Admin-Panel unter Einstellungen, Sicherheit, „MCP access“. Über Ingress nicht erreichbar, dafür muss der Port `8080/tcp` freigegeben sein. Die IP-Freigabeliste des Admin-Panels gilt hier nicht.
   ai_api_key:
     name: API-Schlüssel für den KI-Assistenten
     description: >-

@@ -225,5 +225,11 @@
 		error 404
 	}
 
+	# The MCP server (/mcp, v5.7.0) deliberately stays open here, unlike /chat:
+	# upstream's security.yaml puts it behind the same stateless token firewall as
+	# /api/v1 (ROLE_MCP, DREEVE_MCP_KEY), so nothing gets through without the key.
+	# And this port is the only place it can work at all: an MCP client carries a
+	# bearer token, not a Home Assistant session, so ingress never lets it in.
+
 	import app
 }

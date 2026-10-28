@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.43
+
+- feat: new `dreeve_mcp_key` option opens Dreeve's read-only MCP server (new in v5.7.0) to AI clients such as Claude Code, Claude Desktop or Cursor. The app takes the key from its environment only, so without the option the server could not be turned on at all. Generate the key in the admin panel under Settings → Security → MCP access, paste it into the option, and point the client at `http://<home-assistant-host>:8080/mcp`. Like the `/api/v1` API it needs the `8080/tcp` port; ingress cannot carry it. The key is the only thing guarding it (the admin IP allowlist does not apply) and the port is plain HTTP, so see DOCS.md before exposing it beyond a trusted network. Leave the option empty and nothing changes: every request is rejected.
+- feat: the add-on log now says so when an API key and an MCP key are swapped between `dreeve_api_key` and `dreeve_mcp_key`, instead of the generic "does not look like an app-generated key".
+
 ## 0.5.42
 
 - feat: bump Dreeve to v5.7.0 [Changelog](https://github.com/dreeveapp/dreeve/releases)

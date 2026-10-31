@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.46
+
+- feat: bump Dreeve to v5.8.0 [Changelog](https://github.com/dreeveapp/dreeve/releases)
+- chore: the overridden `AppShell.php` is resynced with v5.8.0, which replaced the Open Graph tags with a page-metadata renderer and moved the shell template. Without it the add-on does not build on v5.8.0 (the override check catches the stale copy).
+- chore: the overridden `flysystem.yaml` and `doctrine.yaml` follow v5.8.0's config cleanup: storages use the bundle's `local:` shorthand (same storages, same folders under `/data`) and three Doctrine options upstream dropped are gone. The build-time override check now accepts either flysystem form.
+- note: Dreeve v5.8.0 adds single sign-on (OIDC) for the admin panel. The add-on cannot turn it on yet; that follows in a separate release.
+
 ## 0.5.45
 
 Notes for updating from 0.5.40 or older; this version itself changes nothing in the add-on.

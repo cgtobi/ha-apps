@@ -90,7 +90,10 @@ fi
 # Parsed with symfony/yaml from the image's own vendor dir (the image has no
 # yq/python, and a text diff would trip over quoting and key order). Storage
 # blocks are compared as normalized arrays — adapter, options, visibility, all
-# of it — with options.directory excluded only for the two storages we redirect.
+# of it — with the directory excluded only for the two storages we redirect.
+# The directory sits under `options:` in the bundle's long form and under the
+# adapter key (`local:`) in its shorthand, which upstream uses since v5.8.0;
+# both are excluded, so the check holds whichever form upstream picks.
 #
 # Skipped when no staging dir is given or we do not override the file.
 if [ -n "$STAGE" ] && [ -f "$STAGE/var/www/config/packages/flysystem.yaml" ]; then
@@ -148,7 +151,10 @@ foreach (array_intersect(array_keys($up), array_keys($ours)) as $key) {
     $u = $up[$key];
     $o = $ours[$key];
     if (in_array($key, $redirected, true)) {
-        unset($u['options']['directory'], $o['options']['directory']);
+        unset(
+            $u['options']['directory'], $o['options']['directory'],
+            $u['local']['directory'], $o['local']['directory'],
+        );
     }
     if ($normalize($u) !== $normalize($o)) {
         $flags = JSON_UNESCAPED_SLASHES;

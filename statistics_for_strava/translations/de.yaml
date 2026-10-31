@@ -44,6 +44,22 @@ configuration:
     name: MCP-Schlüssel
     description: >-
       Bearer-Token für den schreibgeschützten MCP-Server der App unter `/mcp`, über den KI-Clients wie Claude Code, Claude Desktop oder Cursor deine Aktivitäten und Kennzahlen lesen können. Leer lassen, um ihn geschlossen zu halten; jede Anfrage wird dann abgelehnt. Einen Schlüssel erzeugst du im Admin-Panel unter Einstellungen, Sicherheit, „MCP access“. Über Ingress nicht erreichbar, dafür muss der Port `8080/tcp` freigegeben sein. Die IP-Freigabeliste des Admin-Panels gilt hier nicht.
+  oidc_issuer_url:
+    name: Issuer-URL für Single Sign-on
+    description: >-
+      Issuer-URL deines OpenID-Connect-Identitätsanbieters (Authentik, Keycloak, Authelia, Pocket ID und ähnliche), um dich per Single Sign-on am Admin-Panel anzumelden. Das Add-on liest daraus `<issuer>/.well-known/openid-configuration`. Single Sign-on ist erst aktiv, wenn alle vier `oidc_`-Optionen gesetzt sind, und funktioniert nur über den Port `8080/tcp`, nicht über Ingress. Die Anmeldung mit Passwort funktioniert in jedem Fall weiter.
+  oidc_client_id:
+    name: Client-ID für Single Sign-on
+    description: >-
+      Client-ID des Clients, den du für Dreeve bei deinem Identitätsanbieter angelegt hast.
+  oidc_client_secret:
+    name: Client-Secret für Single Sign-on
+    description: >-
+      Client-Secret dieses Clients. Dreeve meldet sich als vertraulicher Client mit Secret an.
+  oidc_allowed_users:
+    name: Für Single Sign-on zugelassene Benutzer
+    description: >-
+      Wer sich anmelden darf, ein Eintrag pro Benutzer: die Kennung (`sub`) beim Identitätsanbieter oder die E-Mail-Adresse, die nur zählt, wenn der Anbieter sie als bestätigt meldet. Alle anderen werden nach der Anmeldung beim Anbieter abgewiesen.
   ai_api_key:
     name: API-Schlüssel für den KI-Assistenten
     description: >-

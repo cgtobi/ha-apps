@@ -205,6 +205,31 @@
 	@hasIngressPath header X-Ingress-Path *
 	request_header @hasIngressPath X-Forwarded-Prefix {header.X-Ingress-Path}
 
+	# Single sign-on (OIDC, v5.8.0) cannot work here. Upstream builds the callback
+	# URL it sends the identity provider from the request, and under ingress that
+	# carries the per-session /api/hassio_ingress/<token> prefix, which no provider
+	# accepts as a registered redirect. Without this the login page's SSO button
+	# lands on the provider's "invalid redirect_uri" error with nothing to say why;
+	# the button itself is upstream's template and stays. The password login is
+	# unaffected. {header.X-Ingress-Path} is safe to put in the page: only the
+	# supervisor can reach this listener (see above).
+	@oidc path /admin/login/oidc /admin/login/oidc/*
+	handle @oidc {
+		header Content-Type "text/html; charset=utf-8"
+		respond <<HTML
+			<!doctype html>
+			<html lang="en">
+			<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Single sign-on</title></head>
+			<body style="font-family: system-ui, sans-serif; max-width: 36rem; margin: 3rem auto; padding: 0 1rem; line-height: 1.5">
+			<h1 style="font-size: 1.25rem">Single sign-on only works on port 8080</h1>
+			<p>Inside Home Assistant, sign in with the admin username and password instead.</p>
+			<p>Single sign-on needs the add-on's direct address, <code>http://&lt;home-assistant-host&gt;:8080/admin</code>, or your own reverse proxy in front of it. Home Assistant's panel URL changes per session, so an identity provider cannot be told where to send you back.</p>
+			<p><a href="{header.X-Ingress-Path}/admin/login">Back to the login page</a></p>
+			</body>
+			</html>
+			HTML 200
+	}
+
 	import app
 }
 

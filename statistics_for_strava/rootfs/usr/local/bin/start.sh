@@ -128,6 +128,48 @@ if [ -f "$OPTIONS_FILE" ]; then
     esac
   fi
 
+  # Single sign-on for the admin panel (v5.8.0, OIDC). Upstream turns it on only
+  # when all four variables are set and otherwise stays off without a word, so a
+  # half-filled config is reported here instead. Only usable on the direct :8080
+  # port: upstream builds the callback URL it hands the identity provider from
+  # the request, and under ingress that URL carries the per-session ingress
+  # token, which no provider accepts as a registered redirect. The ingress
+  # listener answers the SSO routes with an explanation instead (Caddyfile).
+  # admin_password stays required: it is the only login that works under ingress,
+  # and the way in when the identity provider is down.
+  _oidc_issuer_url="$(jq -r '.oidc_issuer_url // ""' "$OPTIONS_FILE")"
+  _oidc_client_id="$(jq -r '.oidc_client_id // ""' "$OPTIONS_FILE")"
+  _oidc_client_secret="$(jq -r '.oidc_client_secret // ""' "$OPTIONS_FILE")"
+  # One user per list entry. Upstream splits OIDC_ALLOWED_USERS on commas, so an
+  # entry holding one would quietly become two users; such entries are dropped.
+  _oidc_comma_users="$(jq -r '[.oidc_allowed_users // [] | .[] | select(contains(","))] | join("; ")' "$OPTIONS_FILE")"
+  _oidc_allowed_users="$(jq -r '[.oidc_allowed_users // [] | .[] | gsub("^\\s+|\\s+$"; "") | select(length > 0 and (contains(",") | not))] | join(",")' "$OPTIONS_FILE")"
+  if [ -n "$_oidc_comma_users" ]; then
+    log "WARN: oidc_allowed_users entries ignored, they hold a comma (one user per entry): ${_oidc_comma_users}"
+  fi
+  case "$_oidc_issuer_url" in
+    ''|https://*|http://*) ;;
+    *)
+      log "WARN: oidc_issuer_url ignored, it is not an http(s) URL: ${_oidc_issuer_url}"
+      _oidc_issuer_url=""
+      ;;
+  esac
+
+  _oidc_missing=""
+  [ -n "$_oidc_issuer_url" ]     || _oidc_missing="${_oidc_missing} oidc_issuer_url"
+  [ -n "$_oidc_client_id" ]      || _oidc_missing="${_oidc_missing} oidc_client_id"
+  [ -n "$_oidc_client_secret" ]  || _oidc_missing="${_oidc_missing} oidc_client_secret"
+  [ -n "$_oidc_allowed_users" ]  || _oidc_missing="${_oidc_missing} oidc_allowed_users"
+  if [ -z "$_oidc_missing" ]; then
+    export OIDC_ISSUER_URL="$_oidc_issuer_url"
+    export OIDC_CLIENT_ID="$_oidc_client_id"
+    export OIDC_CLIENT_SECRET="$_oidc_client_secret"
+    export OIDC_ALLOWED_USERS="$_oidc_allowed_users"
+    log "Single sign-on enabled for the admin panel on port 8080 (issuer ${_oidc_issuer_url}); the callback URL to register with the identity provider is shown under Settings -> Security there"
+  elif [ "$_oidc_missing" != " oidc_issuer_url oidc_client_id oidc_client_secret oidc_allowed_users" ]; then
+    log "WARN: single sign-on stays off, these options are not set:${_oidc_missing}"
+  fi
+
   # API key for the AI workout assistant's cloud providers (provider and model
   # live in the app's admin panel, Settings -> Integrations; this key is the one
   # piece of that config the app takes from the environment). Exported even when

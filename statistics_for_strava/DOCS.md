@@ -67,6 +67,10 @@ The add-on options are intentionally minimal — they cover only what the app ne
 | `admin_allowed_ips` | Optional comma-separated list of IP addresses or CIDR ranges allowed to reach the admin panel. Empty (the default) means no restriction. See "Restricting the admin panel by IP" below. |
 | `dreeve_api_key` | Bearer token for the app's `/api/v1` HTTP API (activity upload, used by GadgetBridge). Optional — leave empty and the API rejects every request. Generate a key in the admin panel under Settings → Security and paste it here. See "The `/api/v1` HTTP API" below. |
 | `dreeve_mcp_key` | Bearer token for the app's read-only MCP server at `/mcp`. Optional — leave empty and the MCP server rejects every request. Generate a key in the admin panel under Settings → Security → MCP access and paste it here. See "The MCP server" below. |
+| `oidc_issuer_url` | Issuer URL of your OpenID Connect identity provider, for signing in to the admin panel with single sign-on. Optional — single sign-on is on only when all four `oidc_` options are set. See "Single sign-on (OIDC)" below. |
+| `oidc_client_id` | Client ID of the client you created for Dreeve at your identity provider. |
+| `oidc_client_secret` | Client secret of that client. |
+| `oidc_allowed_users` | Who may sign in with single sign-on, one entry per user: their subject (`sub`) at the identity provider, or their verified email address. |
 | `ai_api_key` | API key for the AI workout assistant when it runs on a cloud provider. Optional — a self-hosted `ollama` needs no key, and the assistant is off entirely until you enable it in the admin panel. See "The AI workout assistant" below. |
 | `trust_forwarded_headers` | Whether the app believes `X-Forwarded-*` headers on the direct `8080/tcp` port. Default `false`, which is right unless you put your own reverse proxy in front of that port — see "Direct port access and reverse proxies" below. Ingress is unaffected. |
 | `expose_share` | Expose the file-import watch dir over the add-on's mapped config dir (SMB/CIFS) so you can drop activity files into it. Used with `import_mode: files`. |
@@ -151,6 +155,49 @@ Two things to keep in mind:
 - **`8080/tcp` is plain HTTP.** The key crosses your network unencrypted on every request. That is
   fine on a network you trust; anywhere else, put a reverse proxy terminating TLS in front of the
   port (see "Direct port access and reverse proxies" below).
+
+## Single sign-on (OIDC)
+
+Dreeve v5.8.0 can sign you in to the admin panel through your own OpenID Connect identity provider
+(Authentik, Keycloak, Authelia, Pocket ID, …) instead of with the password. The login page then shows
+a **Sign in with single sign-on** button. `admin_password` stays required and keeps working next to
+it — inside Home Assistant it is the only way in, and it is your way back in when the identity
+provider is down.
+
+**It only works on the `8080/tcp` port, not through ingress.** The identity provider only sends you
+back to a callback URL registered with it beforehand, and Dreeve builds that URL from the address you
+opened the app on. Under ingress that address carries a token that changes with every Home Assistant
+session, so no registration can match it. Clicking the button inside Home Assistant shows a short
+explanation instead.
+
+1. Expose the add-on's `8080/tcp` port (Configuration → Network). If your identity provider insists on
+   `https` callback URLs, as many do, put your own reverse proxy terminating TLS in front of it and set
+   `trust_forwarded_headers: true` — see "Direct port access and reverse proxies" below.
+2. At the identity provider, create a confidential OpenID Connect client (authorization code flow,
+   with a client secret) and register this callback URL, exactly as Dreeve will send it:
+   - port opened directly: `http://<home-assistant-host>:8080/admin/login/oidc/callback`
+   - behind your reverse proxy: `https://<your-hostname>/admin/login/oidc/callback`
+3. Fill in `oidc_issuer_url`, `oidc_client_id`, `oidc_client_secret` and `oidc_allowed_users`, then
+   restart the add-on. The log says `Single sign-on enabled` once all four are set, or names the ones
+   that are missing.
+4. Open the admin panel **on the address from step 2** and check Settings → Security → Single sign-on.
+   The **Redirect URI** shown there is the callback URL Dreeve sends; it must match the registered one
+   character for character. (Read through ingress, that page shows the ingress address instead, which
+   is not the one to register.)
+
+Good to know:
+
+- `oidc_allowed_users` takes one user per entry: the user's subject (`sub`) at the identity provider,
+  or their email address. An email only counts when the provider marks it as verified. Anyone not
+  listed is turned away after signing in at the provider.
+- Dreeve asks for the scopes `openid email profile`, uses PKCE, authenticates at the token endpoint
+  with HTTP Basic (`client_secret_basic`), and accepts only asymmetrically signed ID tokens (RS256,
+  ES256 and the like). A provider that signs with a shared secret (HS256) is rejected.
+- The add-on itself must reach the issuer URL — it reads the provider's discovery document, exchanges
+  the login code and fetches the signing keys from there. An identity provider only reachable from
+  your browser will not do.
+- `admin_allowed_ips` still applies: the callback is part of `/admin`, so your browser's address must
+  be allowed.
 
 ## The AI workout assistant
 

@@ -1,5 +1,5 @@
 name: "Dreeve"
-version: "0.5.46"
+version: "0.5.47"
 slug: "statistics_for_strava"
 description: "Dashboard for your sports & fitness data"
 url: "https://github.com/dreeveapp/dreeve"
@@ -50,6 +50,10 @@ options:
   admin_allowed_ips: ""
   dreeve_api_key: ""
   dreeve_mcp_key: ""
+  oidc_issuer_url: ""
+  oidc_client_id: ""
+  oidc_client_secret: ""
+  oidc_allowed_users: []
   ai_api_key: ""
   trust_forwarded_headers: false
   expose_share: false
@@ -67,6 +71,11 @@ schema:
   admin_allowed_ips: str?
   dreeve_api_key: password?
   dreeve_mcp_key: password?
+  oidc_issuer_url: str?
+  oidc_client_id: str?
+  oidc_client_secret: password?
+  oidc_allowed_users:
+    - str
   ai_api_key: password?
   trust_forwarded_headers: bool
   expose_share: bool

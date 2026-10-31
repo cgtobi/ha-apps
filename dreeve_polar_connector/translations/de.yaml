@@ -36,6 +36,29 @@ configuration:
   log_level:
     name: Protokollstufe
     description: Wie viel der Connector ins Add-on-Log schreibt.
+  weight_sync:
+    name: Gewicht an Dreeve übertragen
+    description: >-
+      Überträgt dein Gewicht aus Polar nach Dreeve, sobald es sich ändert. Braucht unten einen
+      Dreeve-API-Schlüssel. Übertragen werden nur echte Messwerte, nie Polars Standard- oder Schätzwert,
+      eingetragen für den Tag, an dem sich das Gewicht geändert hat.
+  dreeve_api_key:
+    name: Dreeve-API-Schlüssel
+    description: >-
+      Ein Dreeve-API-Schlüssel (drv_...), erzeugt im Admin-Panel von Dreeve unter Einstellungen,
+      Sicherheit. Derselbe Schlüssel gehört auch in die API-Schlüssel-Option des Dreeve-Add-ons, sonst
+      lehnt Dreeve ihn ab. Der MCP-Schlüssel (drvm_...) funktioniert hier nicht.
+  dreeve_url:
+    name: Dreeve-Adresse
+    description: >-
+      Leer lassen: Das Add-on ermittelt die Adresse des Dreeve-Add-ons aus dessen Watch-Ordner. Nur
+      setzen, wenn Dreeve woanders läuft oder der Watch-Ordner von Hand gesetzt wurde.
+  weight_unit:
+    name: Gewichtseinheit
+    description: >-
+      Das Einheitensystem, auf das Dreeve unter Darstellung eingestellt ist: kg für metrisch, lb für
+      imperial. Dreeve liest die Zahl in dieser Einheit, bei einer Abweichung werden aus 80 kg also
+      80 lb.
   extra_env:
     name: Zusätzliche Einstellungen
     description: >-

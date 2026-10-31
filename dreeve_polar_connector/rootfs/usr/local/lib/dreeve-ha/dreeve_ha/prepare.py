@@ -29,7 +29,14 @@ def run(
         log("FATAL: {0}".format(exception))
         return 1
 
-    environment, warnings = env.build(addon_options, watch_dir)
+    try:
+        environment, warnings = env.build(addon_options, watch_dir)
+    except env.WeightSyncUnconfigured as exception:
+        # Fatal rather than a warning: the connector itself refuses WEIGHT_SYNC without these, with a
+        # message naming its variables. Failing here names the add-on options instead.
+        log("FATAL: {0}".format(exception))
+        return 1
+
     for warning in warnings:
         log("WARN: {0}".format(warning))
 
@@ -53,6 +60,12 @@ def run(
     secretfile.write(env_file, env.as_shell(environment).encode("utf-8"))
 
     log("Delivering Polar training sessions into {0}".format(watch_dir))
+    if addon_options["weight_sync"]:
+        log(
+            "Recording Polar weight changes in Dreeve at {0}, in {1}".format(
+                environment["DREEVE_URL"], environment["DREEVE_WEIGHT_UNIT"]
+            )
+        )
     return 0
 
 

@@ -70,6 +70,70 @@ class BuildTest(unittest.TestCase):
         self.assertNotIn("SINCE", built)
         self.assertNotIn("TZ", built)
 
+    def test_weight_sync_exports_nothing_while_it_is_off(self):
+        built, _ = env.build(
+            make_options(dreeve_api_key="drv_key", dreeve_url="http://dreeve:8080"),
+            Path("/addon_configs/ee92d2cf_statistics_for_strava/watch"),
+        )
+
+        for variable in ("WEIGHT_SYNC", "DREEVE_URL", "DREEVE_API_KEY", "DREEVE_WEIGHT_UNIT"):
+            self.assertNotIn(variable, built)
+
+    def test_weight_sync_derives_the_dreeve_address_from_the_watch_folder(self):
+        # Add-ons reach each other by hostname: the config folder's name with underscores as hyphens.
+        built, _ = env.build(
+            make_options(weight_sync=True, dreeve_api_key="drv_key", weight_unit="lb"),
+            Path("/addon_configs/ee92d2cf_statistics_for_strava/watch"),
+        )
+
+        self.assertEqual(built["WEIGHT_SYNC"], "true")
+        self.assertEqual(built["DREEVE_URL"], "http://ee92d2cf-statistics-for-strava:8080")
+        self.assertEqual(built["DREEVE_API_KEY"], "drv_key")
+        self.assertEqual(built["DREEVE_WEIGHT_UNIT"], "lb")
+
+    def test_the_dreeve_url_option_wins_over_the_derived_address(self):
+        built, _ = env.build(
+            make_options(weight_sync=True, dreeve_api_key="drv_key", dreeve_url="http://192.168.1.10:8080"),
+            Path("/addon_configs/ee92d2cf_statistics_for_strava/watch"),
+        )
+
+        self.assertEqual(built["DREEVE_URL"], "http://192.168.1.10:8080")
+
+    def test_weight_sync_without_an_api_key_is_refused_naming_the_option(self):
+        with self.assertRaisesRegex(env.WeightSyncUnconfigured, "dreeve_api_key"):
+            env.build(make_options(weight_sync=True), Path("/addon_configs/local_statistics_for_strava/watch"))
+
+    def test_weight_sync_with_a_hand_set_watch_folder_needs_the_dreeve_url(self):
+        # A watch_dir outside /addon_configs/<slug>/watch says nothing about where Dreeve runs.
+        with self.assertRaisesRegex(env.WeightSyncUnconfigured, "dreeve_url"):
+            env.build(make_options(weight_sync=True, dreeve_api_key="drv_key"), Path("/share/dreeve/watch"))
+
+    def test_both_problems_are_reported_at_once(self):
+        with self.assertRaises(env.WeightSyncUnconfigured) as raised:
+            env.build(make_options(weight_sync=True), Path("/share/dreeve/watch"))
+
+        self.assertIn("dreeve_api_key", str(raised.exception))
+        self.assertIn("dreeve_url", str(raised.exception))
+
+    def test_extra_env_cannot_override_the_weight_options_while_weight_sync_is_on(self):
+        built, warnings = env.build(
+            make_options(
+                weight_sync=True, dreeve_api_key="drv_key", extra_env=["DREEVE_URL=http://elsewhere:8080"]
+            ),
+            Path("/addon_configs/local_statistics_for_strava/watch"),
+        )
+
+        self.assertEqual(built["DREEVE_URL"], "http://local-statistics-for-strava:8080")
+        self.assertTrue(any("DREEVE_URL" in warning for warning in warnings))
+
+    def test_extra_env_may_set_the_weight_variables_while_weight_sync_is_off(self):
+        built, warnings = env.build(
+            make_options(extra_env=["DREEVE_WEIGHT_UNIT=lb"]), Path("/addon_configs/local_statistics_for_strava/watch")
+        )
+
+        self.assertEqual(built["DREEVE_WEIGHT_UNIT"], "lb")
+        self.assertEqual(warnings, [])
+
     def test_extra_env_is_applied(self):
         built, warnings = env.build(
             make_options(extra_env=["POLL_INTERVAL=7200", "SPORTS=running,cycling"]), Path("/watch")

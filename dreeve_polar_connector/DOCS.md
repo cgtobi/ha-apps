@@ -93,11 +93,16 @@ again if you ever re-authorize.
 | `tz` | `Etc/GMT` | Timezone for log timestamps and date comparisons. |
 | `watch_dir` | - | Leave empty to auto-detect the Dreeve add-on's watch folder. Set it if auto-detection reports several candidates. |
 | `log_level` | `info` | `debug`, `info`, `warning`, `error` or `critical`. |
+| `weight_sync` | `false` | Record your Polar weight in Dreeve whenever it changes. See "Weight" below. |
+| `dreeve_api_key` | - | A Dreeve API key (`drv_…`). **Required** with `weight_sync`. |
+| `dreeve_url` | - | Dreeve's address. Leave empty to derive it from the Dreeve add-on's watch folder. |
+| `weight_unit` | `kg` | `kg` or `lb`: the unit system Dreeve is set to under Appearance. |
 | `extra_env` | `[]` | Extra connector settings as `KEY=VALUE`, for example `SPORTS=running,cycling` or `POLL_INTERVAL=1800`. |
 
 `extra_env` cannot set `POLAR_TOKENS`, `STATE_DIR`, `WATCH_DIR` or `HTTP_ADDR`: the add-on owns
 those, and overriding them would break persistence, the authorization page or the watchdog. Attempts
-are logged and ignored.
+are logged and ignored. While `weight_sync` is on, the same goes for `WEIGHT_SYNC`, `DREEVE_URL`,
+`DREEVE_API_KEY` and `DREEVE_WEIGHT_UNIT`, which the weight options set.
 
 Useful `extra_env` settings: `SPORTS` (only these sports), `FALLBACK_FORMAT` (`tcx`, `gpx` or `none`
 for exercises without a FIT file), `ON_CONFLICT`, `POLL_INTERVAL`, `MAX_DOWNLOADS_PER_CYCLE`,
@@ -106,6 +111,32 @@ for exercises without a FIT file), `ON_CONFLICT`, `POLL_INTERVAL`, `MAX_DOWNLOAD
 `public_url` may be left empty if - and only if - your Polar client has exactly one registered
 redirect URL, which Polar then uses automatically. With several registered, authorization fails until
 you set it.
+
+## Weight
+
+With `weight_sync` on, the connector also records your body weight from Polar Flow in Dreeve, which
+uses it from that day on. It is off by default.
+
+1. In Dreeve's admin panel, go to Settings → Security and generate an **API key** (`drv_…`). Put it
+   into the Dreeve add-on's `dreeve_api_key` option (Dreeve only accepts keys it is configured with)
+   **and** into this add-on's `dreeve_api_key`. The MCP key (`drvm_…`) does not work here.
+2. Set `weight_unit` to the unit system Dreeve uses under Appearance.
+3. Turn on `weight_sync` and restart. The log says where weights go:
+   `Recording Polar weight changes in Dreeve at http://<prefix>-statistics-for-strava:8080, in kg`.
+
+The add-on reaches Dreeve over Home Assistant's internal add-on network, so Dreeve's `8080/tcp` port
+does **not** need to be published. `dreeve_url` is worked out from the Dreeve add-on's watch folder;
+set it by hand only when you set `watch_dir` yourself or Dreeve runs somewhere else.
+
+How it behaves:
+
+- **Only the current weight.** Polar keeps no weight history the connector can read: it records the
+  weight you have now and every change from then on.
+- **Only real readings**, never a weight Polar only has as a default or an estimate.
+- **Only changes**, to 0.1 kg, filed under the day the weight changed in Polar (in the `tz` option's
+  time zone). Dreeve keeps one value per day, so this replaces a value entered by hand for that day.
+- **Dreeve being down costs nothing**: the weight is sent again next cycle, and the connector stays
+  healthy. The log reports `weightError=` until it gets through.
 
 ## Why authorization uses a port and not ingress
 
@@ -133,6 +164,8 @@ healthy=True authorization=ok authorizeUrl=None backlog=42 lastSuccessfulSync=..
   the new token up without a restart.
 - `backlog` is the number of exercises still owed a download.
 - `backoffSeconds` above zero means Polar rate-limited the connector and it is waiting.
+- With `weight_sync` on, `weight=80.4kg@2026-10-30` is the last weight recorded in Dreeve and the day
+  it was filed under, and `weightError` says why the latest one has not arrived yet.
 - The connector also logs `docker compose run --rm polar-connector login` in some situations.
   **Ignore that.** It is written for Docker Compose users; on Home Assistant, use the Web UI.
 

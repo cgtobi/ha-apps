@@ -7,7 +7,8 @@ from pathlib import Path
 
 OPTIONS_FILE = Path("/data/options.json")
 
-# The defaults also define the shape: a list default means the option is a list of strings.
+# The defaults also define the shape: a list default means the option is a list of strings, a bool
+# default a boolean.
 DEFAULTS = {
     "polar_client_id": "",
     "polar_client_secret": "",
@@ -17,6 +18,10 @@ DEFAULTS = {
     "tz": "",
     "watch_dir": "",
     "log_level": "info",
+    "weight_sync": False,
+    "dreeve_api_key": "",
+    "dreeve_url": "",
+    "weight_unit": "kg",
     "extra_env": [],
 }
 
@@ -36,7 +41,11 @@ def read(path=OPTIONS_FILE):
     result = {}
     for key, default in DEFAULTS.items():
         value = raw.get(key, default)
-        if isinstance(default, list):
+        if isinstance(default, bool):
+            # Only a real JSON true: the schema says bool, so anything else is a hand-edited file, and
+            # "off" is the safe reading of it.
+            result[key] = value is True
+        elif isinstance(default, list):
             result[key] = [str(item) for item in (value or [])]
         else:
             # Stripping is deliberate and uniform: a pasted value carrying a trailing newline is far

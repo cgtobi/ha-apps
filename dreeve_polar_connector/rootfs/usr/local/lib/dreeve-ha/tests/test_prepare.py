@@ -105,5 +105,23 @@ class RunTest(unittest.TestCase):
         self.assertTrue(any("expose_share" in message for message in self.logged))
 
 
+    def test_fails_when_weight_sync_is_on_without_an_api_key(self):
+        self.write_options({"polar_client_id": "abc-123", "weight_sync": True})
+
+        exit_code = self.run_prepare()
+
+        self.assertEqual(exit_code, 1)
+        self.assertFalse(self.env_file.exists())
+        self.assertTrue(any("FATAL" in message and "dreeve_api_key" in message for message in self.logged))
+
+    def test_says_where_weights_go_when_weight_sync_is_on(self):
+        self.write_options({"polar_client_id": "abc-123", "weight_sync": True, "dreeve_api_key": "drv_key"})
+
+        self.assertEqual(self.run_prepare(), 0)
+        self.assertTrue(
+            any("http://local-statistics-for-strava:8080" in message for message in self.logged), self.logged
+        )
+        self.assertFalse(any("drv_key" in message for message in self.logged))
+
 if __name__ == "__main__":
     unittest.main()

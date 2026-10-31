@@ -43,12 +43,31 @@ logger = logging.getLogger("dreeve-ha.status")
 
 
 def summarize(payload):
-    return " ".join("{0}={1}".format(field, payload.get(field)) for field in FIELDS)
+    line = " ".join("{0}={1}".format(field, payload.get(field)) for field in FIELDS)
+    weight = _weight(payload)
+
+    return line if weight is None else "{0} weight={1} weightError={2}".format(line, *weight)
 
 
 def signature(payload):
     """What is compared between polls: the reported line minus the fields that always move."""
-    return tuple(payload.get(field) for field in SIGNIFICANT)
+    return tuple(payload.get(field) for field in SIGNIFICANT) + (_weight(payload),)
+
+
+def _weight(payload):
+    """(recorded, error) from the connector's weight block, or None while weight sync is off.
+
+    Its lastOutcome is left out on purpose: it flips from pushed to unchanged one cycle after every push,
+    which says nothing new. A new weight or a new error is what is worth a line.
+    """
+    weight = payload.get("weight")
+    if not isinstance(weight, dict):
+        return None
+
+    value, unit, on = weight.get("lastRecordedValue"), weight.get("unit"), weight.get("lastRecordedOn")
+    recorded = "{0}{1}@{2}".format(value, unit, on) if value is not None and on else None
+
+    return recorded, weight.get("lastError")
 
 
 def level(environ=None):

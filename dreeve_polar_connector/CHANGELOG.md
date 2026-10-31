@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.17
+
+- feat: bump Polar connector to 0.3.0 [Changelog](https://github.com/dreeveapp/dreeve-polar-connector/releases)
+- feat: new `weight_sync` option records your Polar weight in Dreeve whenever it changes. Off by default. Needs a Dreeve API key in `dreeve_api_key` (the same one the Dreeve add-on is configured with) and `weight_unit` matching Dreeve's unit system. Dreeve's address is worked out from its watch folder, so its port does not need to be published; `dreeve_url` overrides it. Only real readings are sent, only when the weight changes, filed under the day it changed. The add-on log reports the last recorded weight and any error. See "Weight" in DOCS.md.
+
 ## 0.1.16
 
 - chore: map every add-on's config dir with `all_app_configs` instead of `all_addon_configs`, which Supervisor 2026.07.1 deprecated and now warns about in the log. The folder stays at `/addon_configs` inside the add-on, so watch-folder auto-detection and a `watch_dir` set by hand keep working unchanged. Requires Supervisor 2026.07.1 or newer; on an older one the add-on no longer shows up in the store

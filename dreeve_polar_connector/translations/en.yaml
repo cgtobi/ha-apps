@@ -36,6 +36,27 @@ configuration:
   log_level:
     name: Log level
     description: How much the connector writes to the add-on log.
+  weight_sync:
+    name: Sync weight to Dreeve
+    description: >-
+      Record your Polar weight in Dreeve whenever it changes. Needs a Dreeve API key below. Only real
+      readings are sent, never Polar's default or estimate, filed under the day the weight changed.
+  dreeve_api_key:
+    name: Dreeve API key
+    description: >-
+      A Dreeve API key (drv_...), generated in Dreeve's admin panel under Settings, Security. Put the
+      same key into the Dreeve add-on's own API key option, or Dreeve rejects it. The MCP key (drvm_...)
+      does not work here.
+  dreeve_url:
+    name: Dreeve address
+    description: >-
+      Leave empty: the add-on works out the Dreeve add-on's address from its watch folder. Set it only
+      when Dreeve runs elsewhere, or when the watch folder was set by hand.
+  weight_unit:
+    name: Weight unit
+    description: >-
+      The unit system Dreeve is set to under Appearance: kg for Metric, lb for Imperial. Dreeve reads
+      the number in that unit, so a mismatch stores 80 kg as 80 lb.
   extra_env:
     name: Extra settings
     description: >-

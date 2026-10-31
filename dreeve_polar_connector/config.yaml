@@ -1,5 +1,5 @@
 name: "Dreeve Polar Connector"
-version: "0.1.16"
+version: "0.1.17"
 slug: "dreeve_polar_connector"
 description: "Imports Polar Flow training sessions into Dreeve"
 url: "https://github.com/dreeveapp/dreeve-polar-connector"
@@ -45,6 +45,10 @@ options:
   tz: "Etc/GMT"
   watch_dir: ""
   log_level: "info"
+  weight_sync: false
+  dreeve_api_key: ""
+  dreeve_url: ""
+  weight_unit: "kg"
   extra_env: []
 
 schema:
@@ -56,5 +60,9 @@ schema:
   tz: str
   watch_dir: str?
   log_level: "list(debug|info|warning|error|critical)"
+  weight_sync: bool
+  dreeve_api_key: password?
+  dreeve_url: str?
+  weight_unit: "list(kg|lb)"
   extra_env:
     - str

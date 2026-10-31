@@ -45,6 +45,25 @@ class ReadTest(unittest.TestCase):
 
         self.assertEqual(result["extra_env"], ["POLL_INTERVAL=7200", "5"])
 
+    def test_weight_sync_is_off_and_kilograms_by_default(self):
+        result = options.read(self.path)
+
+        self.assertIs(result["weight_sync"], False)
+        self.assertEqual(result["weight_unit"], "kg")
+        self.assertEqual(result["dreeve_api_key"], "")
+        self.assertEqual(result["dreeve_url"], "")
+
+    def test_a_boolean_option_stays_a_boolean(self):
+        # str(True) is "True", which nothing downstream would read as switched on.
+        self.assertIs(options.read(self.write({"weight_sync": True}))["weight_sync"], True)
+        self.assertIs(options.read(self.write({"weight_sync": False}))["weight_sync"], False)
+
+    def test_a_boolean_option_only_accepts_true(self):
+        # The schema says bool; anything else is a hand-edited file, and "off" is the safe reading.
+        for value in ("true", 1, "yes", None):
+            with self.subTest(value=value):
+                self.assertIs(options.read(self.write({"weight_sync": value}))["weight_sync"], False)
+
     def test_unparsable_file_yields_defaults(self):
         self.path.write_text("not json at all", encoding="utf-8")
 

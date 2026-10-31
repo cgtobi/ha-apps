@@ -84,6 +84,50 @@ class LevelTest(unittest.TestCase):
                 self.assertEqual(statusloop.level(environ), logging.INFO)
 
 
+class WeightSummaryTest(unittest.TestCase):
+    WEIGHT = {
+        "unit": "kg",
+        "lastOutcome": "pushed",
+        "lastRecordedOn": "2026-10-30",
+        "lastRecordedValue": 80.4,
+        "lastError": None,
+    }
+
+    def test_weight_is_left_out_while_weight_sync_is_off(self):
+        self.assertNotIn("weight", statusloop.summarize({"healthy": True}))
+
+    def test_the_recorded_weight_is_reported_in_one_readable_field(self):
+        line = statusloop.summarize({"healthy": True, "weight": self.WEIGHT})
+
+        self.assertIn("weight=80.4kg@2026-10-30", line)
+        self.assertIn("weightError=None", line)
+
+    def test_a_weight_error_is_reported(self):
+        line = statusloop.summarize({"healthy": True, "weight": {**self.WEIGHT, "lastError": "Dreeve is down"}})
+
+        self.assertIn("weightError=Dreeve is down", line)
+
+    def test_nothing_recorded_yet_reads_as_none(self):
+        line = statusloop.summarize(
+            {"healthy": True, "weight": {**self.WEIGHT, "lastRecordedOn": None, "lastRecordedValue": None}}
+        )
+
+        self.assertIn("weight=None", line)
+
+    def test_a_new_weight_or_error_is_worth_a_line_but_the_outcome_flip_alone_is_not(self):
+        pushed = statusloop.signature({"healthy": True, "weight": self.WEIGHT})
+
+        # pushed -> unchanged happens one cycle after every push and says nothing new.
+        self.assertEqual(
+            statusloop.signature({"healthy": True, "weight": {**self.WEIGHT, "lastOutcome": "unchanged"}}), pushed
+        )
+        self.assertNotEqual(
+            statusloop.signature({"healthy": True, "weight": {**self.WEIGHT, "lastRecordedValue": 79.8}}), pushed
+        )
+        self.assertNotEqual(
+            statusloop.signature({"healthy": True, "weight": {**self.WEIGHT, "lastError": "down"}}), pushed
+        )
+
 class PollOnceTest(unittest.TestCase):
     def setUp(self):
         self.emitted = []

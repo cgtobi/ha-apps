@@ -25,6 +25,32 @@ VARIABLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 # authorization page (the fourth).
 OWNED = ("POLAR_TOKENS", "STATE_DIR", "WATCH_DIR", "HTTP_ADDR")
 
+# Owned only while weight_sync is on, when the add-on options set them. With it off, extra_env stays
+# free to set them by hand.
+WEIGHT_VARIABLES = ("WEIGHT_SYNC", "DREEVE_URL", "DREEVE_API_KEY", "DREEVE_WEIGHT_UNIT")
+# The Dreeve add-on's own listener, not its host port: add-ons reach each other on the internal network
+# whether or not 8080/tcp is published, and /api/v1 is served there.
+DREEVE_PORT = 8080
+
+
+class WeightSyncUnconfigured(Exception):
+    """weight_sync is on, but the options do not say how to reach Dreeve. Names the options to set."""
+
+
+def dreeve_url_for(watch_dir):
+    """Dreeve's address on the add-on network, read off its watch folder, or None when it cannot be.
+
+    The auto-detected folder is /addon_configs/<prefix>_statistics_for_strava/watch, and an add-on's
+    hostname is that folder's name with underscores as hyphens. A watch_dir set by hand anywhere else
+    says nothing about where Dreeve runs.
+    """
+    watch_dir = Path(watch_dir)
+    config_dir = watch_dir.parent
+    if watch_dir.name != "watch" or config_dir.parent.name != "addon_configs" or not config_dir.name:
+        return None
+
+    return "http://{0}:{1}".format(config_dir.name.replace("_", "-"), DREEVE_PORT)
+
 
 def build(addon_options, watch_dir):
     """Returns (environment, warnings). Warnings are for the log; they are not fatal."""
@@ -54,6 +80,11 @@ def build(addon_options, watch_dir):
         if addon_options[option_key]:
             environment[variable] = addon_options[option_key]
 
+    owned = OWNED
+    if addon_options["weight_sync"]:
+        environment.update(_weight_environment(addon_options, watch_dir))
+        owned = OWNED + WEIGHT_VARIABLES
+
     warnings = []
     for entry in addon_options["extra_env"]:
         key, separator, value = entry.partition("=")
@@ -63,10 +94,12 @@ def build(addon_options, watch_dir):
                 "Ignoring extra_env entry {0!r}: expected KEY=VALUE.".format(entry)
             )
             continue
-        if key in OWNED:
-            warnings.append(
-                "Ignoring extra_env entry for {0}: this add-on owns that variable.".format(key)
-            )
+        if key in owned:
+            if key in WEIGHT_VARIABLES:
+                reason = "the weight options set it while weight_sync is on"
+            else:
+                reason = "this add-on owns that variable"
+            warnings.append("Ignoring extra_env entry for {0}: {1}.".format(key, reason))
             continue
         if not VARIABLE_NAME.match(key):
             warnings.append(
@@ -78,6 +111,33 @@ def build(addon_options, watch_dir):
 
     return environment, warnings
 
+
+
+def _weight_environment(addon_options, watch_dir):
+    """The connector's weight sync variables, or WeightSyncUnconfigured naming every option missing."""
+    problems = []
+    if not addon_options["dreeve_api_key"]:
+        problems.append(
+            "set 'dreeve_api_key' to a Dreeve API key (drv_..., generated in Dreeve's admin panel under "
+            "Settings, Security; the same key goes into the Dreeve add-on's own dreeve_api_key option)"
+        )
+
+    dreeve_url = addon_options["dreeve_url"] or dreeve_url_for(watch_dir)
+    if not dreeve_url:
+        problems.append(
+            "set 'dreeve_url' to Dreeve's address, e.g. http://<prefix>-statistics-for-strava:8080; it "
+            "cannot be worked out from the watch folder {0}".format(watch_dir)
+        )
+
+    if problems:
+        raise WeightSyncUnconfigured("weight_sync is on, but " + "; and ".join(problems) + ".")
+
+    return {
+        "WEIGHT_SYNC": "true",
+        "DREEVE_URL": dreeve_url,
+        "DREEVE_API_KEY": addon_options["dreeve_api_key"],
+        "DREEVE_WEIGHT_UNIT": addon_options["weight_unit"] or "kg",
+    }
 
 def as_shell(environment):
     """Renders the environment as export lines a POSIX shell can source safely."""

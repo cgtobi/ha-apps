@@ -1,5 +1,5 @@
 name: "Dreeve"
-version: "0.5.48"
+version: "0.5.49"
 slug: "statistics_for_strava"
 description: "Dashboard for your sports & fitness data"
 url: "https://github.com/dreeveapp/dreeve"
@@ -32,8 +32,11 @@ watchdog: "http://[HOST]:[PORT:8080]/healthz"
 # exposed on the host as /addon_configs/local_statistics_for_strava). Backs the
 # file-import watch directory (expose_share). Scoped to this add-on's dir
 # only (not all of /share).
+# /ssl (read-only) is where Home Assistant keeps certificates; oidc_ca_file can
+# point at a private CA there.
 map:
   - app_config:rw
+  - ssl:ro
 
 # In v5, the app's configuration lives in its database and is edited via the
 # built-in admin panel, not via add-on options. These options are just the
@@ -54,6 +57,7 @@ options:
   oidc_client_id: ""
   oidc_client_secret: ""
   oidc_allowed_users: []
+  oidc_ca_file: ""
   ai_api_key: ""
   trust_forwarded_headers: false
   expose_share: false
@@ -76,6 +80,7 @@ schema:
   oidc_client_secret: password?
   oidc_allowed_users:
     - str
+  oidc_ca_file: str?
   ai_api_key: password?
   trust_forwarded_headers: bool
   expose_share: bool

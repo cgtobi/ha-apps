@@ -71,6 +71,7 @@ The add-on options are intentionally minimal — they cover only what the app ne
 | `oidc_client_id` | Client ID of the client you created for Dreeve at your identity provider. |
 | `oidc_client_secret` | Client secret of that client. |
 | `oidc_allowed_users` | Who may sign in with single sign-on, one entry per user: their subject (`sub`) at the identity provider, or their verified email address. |
+| `oidc_ca_file` | Path to your own CA certificate (PEM) when the identity provider's HTTPS certificate is signed by it, e.g. `/ssl/my-ca.pem`. Optional — leave empty for a provider with a public certificate. See "Single sign-on (OIDC)" below. |
 | `ai_api_key` | API key for the AI workout assistant when it runs on a cloud provider. Optional — a self-hosted `ollama` needs no key, and the assistant is off entirely until you enable it in the admin panel. See "The AI workout assistant" below. |
 | `trust_forwarded_headers` | Whether the app believes `X-Forwarded-*` headers on the direct `8080/tcp` port. Default `false`, which is right unless you put your own reverse proxy in front of that port — see "Direct port access and reverse proxies" below. Ingress is unaffected. |
 | `expose_share` | Expose the file-import watch dir over the add-on's mapped config dir (SMB/CIFS) so you can drop activity files into it. Used with `import_mode: files`. |
@@ -198,6 +199,44 @@ Good to know:
   your browser will not do.
 - `admin_allowed_ips` still applies: the callback is part of `/admin`, so your browser's address must
   be allowed.
+- **Authelia** leaves `email` out of the ID token by default, and Dreeve reads the user from the ID
+  token only. To allow users by email address, give the client a claims policy that puts it back:
+
+  ```yaml
+  identity_providers:
+    oidc:
+      claims_policies:
+        dreeve:
+          id_token: ['email', 'email_verified', 'preferred_username', 'name']
+      clients:
+        - client_id: 'dreeve'
+          claims_policy: 'dreeve'
+          # ...the rest of the client as before
+  ```
+
+  Without it, only the subject (`sub`) entries in `oidc_allowed_users` can ever match.
+- When a sign-in fails, the login page shows a short message: the provider's error code if it sent
+  one, otherwise "see errors.log for details". The details (what the provider answered, or why the
+  ID token was rejected) are written to `/data/storage/files/logs/errors.log` inside the add-on, not
+  to the add-on log.
+
+### Identity provider with a private CA
+
+If your identity provider's HTTPS certificate is signed by your own certificate authority (common
+with a home-lab CA, or step-ca), the add-on cannot verify it and every sign-in fails with a
+certificate error in `errors.log`. Give it the CA certificate:
+
+1. Put the CA certificate, in PEM format (the text file starting with `-----BEGIN CERTIFICATE-----`),
+   into Home Assistant's `ssl` folder, for example as `my-ca.pem`. The add-on's own config folder
+   (`/addon_configs/local_statistics_for_strava` on the host) works as well.
+2. Set `oidc_ca_file` to its path **as the add-on sees it**: `/ssl/my-ca.pem`, or `/config/my-ca.pem`
+   for the add-on's config folder. Restart the add-on.
+
+The log confirms the file when single sign-on starts up, or says why it was ignored (no such file,
+no certificate in it). Dreeve then trusts **only** the certificates in that file for requests to the
+identity provider, not the usual public CAs, so leave the option empty for a provider with a public
+certificate (Let's Encrypt and the like). If the provider's certificate comes from an intermediate
+CA, the file can hold several certificates one after another.
 
 ## The AI workout assistant
 

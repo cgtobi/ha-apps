@@ -60,6 +60,10 @@ configuration:
     name: Single sign-on allowed users
     description: >-
       Who may sign in, one entry per user: the user's subject (`sub`) at the identity provider, or their email address, which only counts when the provider reports it as verified. Anyone else is turned away after signing in at the provider.
+  oidc_ca_file:
+    name: Single sign-on CA certificate
+    description: >-
+      Only for an identity provider whose HTTPS certificate is signed by your own certificate authority. Path to that CA certificate in PEM format inside the add-on, for example `/ssl/my-ca.pem` (Home Assistant's `ssl` folder) or `/config/my-ca.pem` (this add-on's config folder). Single sign-on then trusts only this file, not the usual public CAs. Leave empty otherwise.
   ai_api_key:
     name: AI assistant API key
     description: >-

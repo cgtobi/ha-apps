@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.49
+
+- feat: single sign-on now works with an identity provider whose HTTPS certificate is signed by your own certificate authority (new in Dreeve v5.8.1). Put the CA certificate (PEM) into Home Assistant's `ssl` folder and set the new `oidc_ca_file` option to its path, e.g. `/ssl/my-ca.pem`. Until now every sign-in against such a provider failed with a certificate error. The add-on now mounts the `ssl` folder read-only for this. The log confirms the file at startup, or says why it was ignored (wrong path, no certificate in it). See "Identity provider with a private CA" in DOCS.md.
+- docs: Authelia needs a claims policy before `oidc_allowed_users` can match by email address, because it leaves `email` out of the ID token by default. DOCS.md has the snippet. Also documented: where the details of a failed sign-in end up.
+
 ## 0.5.48
 
 - feat: bump Dreeve to v5.8.2 [Changelog](https://github.com/dreeveapp/dreeve/releases)

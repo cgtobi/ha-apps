@@ -166,6 +166,32 @@ if [ -f "$OPTIONS_FILE" ]; then
     export OIDC_CLIENT_SECRET="$_oidc_client_secret"
     export OIDC_ALLOWED_USERS="$_oidc_allowed_users"
     log "Single sign-on enabled for the admin panel on port 8080 (issuer ${_oidc_issuer_url}); the callback URL to register with the identity provider is shown under Settings -> Security there"
+
+    # Private CA for the identity provider (v5.8.1). Upstream hands the path to
+    # the HTTP client as its only trust store for OIDC requests and never checks
+    # it, so a typo would only surface as a TLS error at the next login, logged
+    # to errors.log. Checked here instead; a bad path is dropped with the reason,
+    # which leaves the system CAs in charge.
+    _oidc_ca_file="$(jq -r '.oidc_ca_file // ""' "$OPTIONS_FILE")"
+    if [ -n "$_oidc_ca_file" ]; then
+      case "$_oidc_ca_file" in
+        /*) _oidc_ca_problem="" ;;
+        *) _oidc_ca_problem="it is not an absolute path (use /ssl/... or /config/...)" ;;
+      esac
+      if [ -z "$_oidc_ca_problem" ] && [ ! -f "$_oidc_ca_file" ]; then
+        _oidc_ca_problem="no such file"
+      elif [ -z "$_oidc_ca_problem" ] && [ ! -r "$_oidc_ca_file" ]; then
+        _oidc_ca_problem="the file is not readable"
+      elif [ -z "$_oidc_ca_problem" ] && ! grep -q -- '-----BEGIN CERTIFICATE-----' "$_oidc_ca_file"; then
+        _oidc_ca_problem="the file holds no PEM certificate (-----BEGIN CERTIFICATE-----)"
+      fi
+      if [ -z "$_oidc_ca_problem" ]; then
+        export OIDC_CA_FILE="$_oidc_ca_file"
+        log "Single sign-on trusts only the CA certificate(s) in ${_oidc_ca_file} for requests to the identity provider"
+      else
+        log "WARN: oidc_ca_file ignored, ${_oidc_ca_problem}: ${_oidc_ca_file}; single sign-on uses the system CAs"
+      fi
+    fi
   elif [ "$_oidc_missing" != " oidc_issuer_url oidc_client_id oidc_client_secret oidc_allowed_users" ]; then
     log "WARN: single sign-on stays off, these options are not set:${_oidc_missing}"
   fi

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.48
+
+- feat: bump Dreeve to v5.8.2 [Changelog](https://github.com/dreeveapp/dreeve/releases)
+- fix: the add-on starts again on databases that 0.5.46 and 0.5.47 could not upgrade. On some older installs, Dreeve v5.8.0's settings migration failed with `UNIQUE constraint failed: Setting.name` and the add-on kept restarting. v5.8.2 first removes the leftover setting that caused it, so the migration now goes through on the next start. Nothing to do on your side.
+
 ## 0.5.47
 
 - feat: sign in to the admin panel with single sign-on through your own OpenID Connect identity provider (new in Dreeve v5.8.0). Set `oidc_issuer_url`, `oidc_client_id`, `oidc_client_secret` and `oidc_allowed_users`; the login page then offers **Sign in with single sign-on** next to the password. It only works on the `8080/tcp` port, not through ingress, because the identity provider needs a fixed callback URL — see "Single sign-on (OIDC)" in DOCS.md. `admin_password` stays required and keeps working alongside it. The log names any of the four options still missing, so a half-filled setup no longer stays off silently.

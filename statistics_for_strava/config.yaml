@@ -1,5 +1,5 @@
 name: "Dreeve"
-version: "0.5.49"
+version: "0.5.50"
 slug: "statistics_for_strava"
 description: "Dashboard for your sports & fitness data"
 url: "https://github.com/dreeveapp/dreeve"
@@ -29,7 +29,8 @@ webui: "http://[HOST]:[PORT:8080]"
 watchdog: "http://[HOST]:[PORT:8080]/healthz"
 
 # Map the add-on's own config dir (mounted at /config inside the container, and
-# exposed on the host as /addon_configs/local_statistics_for_strava). Backs the
+# exposed on the host as /addon_configs/<prefix>_statistics_for_strava, where
+# <prefix> is "local" or the repository hash). Backs the
 # file-import watch directory (expose_share). Scoped to this add-on's dir
 # only (not all of /share).
 # /ssl (read-only) is where Home Assistant keeps certificates; oidc_ca_file can

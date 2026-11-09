@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.50
+
+- feat: Dreeve's errors now show up in the add-on log too, not only in `errors.log`. That file sits under `/data`, which Home Assistant gives you no way to open. Yet the login page points you there when single sign-on fails ("see errors.log for details"), and a "500" error page shows a `Reference:` code that only that file explains. Both now appear in the add-on log as `errors.ERROR: ...` lines, with the same details as the file. A 500 error includes its stack trace, so expect a longer entry when you look one up by its reference.
+- fix: DOCS.md now says where a failed single sign-on actually shows up. 0.5.49 sent every failure to the same "OIDC login failed" line, but an identity provider the add-on cannot reach or does not trust (the private-CA case) ends on an error page with a `Reference:` code, and a user not on `oidc_allowed_users` is turned away without any log entry. "Single sign-on (OIDC)" lists the three cases.
+- feat: the log warns when `oidc_ca_file` is set while single sign-on is off, instead of ignoring it without a word.
+- docs: the add-on's config folder is `/addon_configs/<prefix>_statistics_for_strava`; the prefix is `local` only for a locally installed add-on. DOCS.md named the `local_` folder (and, for the Samba share, a folder without any prefix).
+
 ## 0.5.49
 
 - feat: single sign-on now works with an identity provider whose HTTPS certificate is signed by your own certificate authority (new in Dreeve v5.8.1). Put the CA certificate (PEM) into Home Assistant's `ssl` folder and set the new `oidc_ca_file` option to its path, e.g. `/ssl/my-ca.pem`. Until now every sign-in against such a provider failed with a certificate error. The add-on now mounts the `ssl` folder read-only for this. The log confirms the file at startup, or says why it was ignored (wrong path, no certificate in it). See "Identity provider with a private CA" in DOCS.md.

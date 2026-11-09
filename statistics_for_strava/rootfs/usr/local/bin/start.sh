@@ -155,6 +155,8 @@ if [ -f "$OPTIONS_FILE" ]; then
       ;;
   esac
 
+  _oidc_ca_file="$(jq -r '.oidc_ca_file // ""' "$OPTIONS_FILE")"
+
   _oidc_missing=""
   [ -n "$_oidc_issuer_url" ]     || _oidc_missing="${_oidc_missing} oidc_issuer_url"
   [ -n "$_oidc_client_id" ]      || _oidc_missing="${_oidc_missing} oidc_client_id"
@@ -169,22 +171,22 @@ if [ -f "$OPTIONS_FILE" ]; then
 
     # Private CA for the identity provider (v5.8.1). Upstream hands the path to
     # the HTTP client as its only trust store for OIDC requests and never checks
-    # it, so a typo would only surface as a TLS error at the next login, logged
-    # to errors.log. Checked here instead; a bad path is dropped with the reason,
-    # which leaves the system CAs in charge.
-    _oidc_ca_file="$(jq -r '.oidc_ca_file // ""' "$OPTIONS_FILE")"
+    # it, so a typo would only surface at the next login, as a 500 page whose
+    # certificate error lands in the errors log. Checked here instead; a bad path
+    # is dropped with the reason, which leaves the system CAs in charge.
     if [ -n "$_oidc_ca_file" ]; then
       case "$_oidc_ca_file" in
-        /*) _oidc_ca_problem="" ;;
+        /*)
+          if [ ! -f "$_oidc_ca_file" ]; then
+            _oidc_ca_problem="no such file"
+          elif ! grep -q -- '-----BEGIN CERTIFICATE-----' "$_oidc_ca_file"; then
+            _oidc_ca_problem="the file holds no PEM certificate (-----BEGIN CERTIFICATE-----)"
+          else
+            _oidc_ca_problem=""
+          fi
+          ;;
         *) _oidc_ca_problem="it is not an absolute path (use /ssl/... or /config/...)" ;;
       esac
-      if [ -z "$_oidc_ca_problem" ] && [ ! -f "$_oidc_ca_file" ]; then
-        _oidc_ca_problem="no such file"
-      elif [ -z "$_oidc_ca_problem" ] && [ ! -r "$_oidc_ca_file" ]; then
-        _oidc_ca_problem="the file is not readable"
-      elif [ -z "$_oidc_ca_problem" ] && ! grep -q -- '-----BEGIN CERTIFICATE-----' "$_oidc_ca_file"; then
-        _oidc_ca_problem="the file holds no PEM certificate (-----BEGIN CERTIFICATE-----)"
-      fi
       if [ -z "$_oidc_ca_problem" ]; then
         export OIDC_CA_FILE="$_oidc_ca_file"
         log "Single sign-on trusts only the CA certificate(s) in ${_oidc_ca_file} for requests to the identity provider"
@@ -194,6 +196,9 @@ if [ -f "$OPTIONS_FILE" ]; then
     fi
   elif [ "$_oidc_missing" != " oidc_issuer_url oidc_client_id oidc_client_secret oidc_allowed_users" ]; then
     log "WARN: single sign-on stays off, these options are not set:${_oidc_missing}"
+  fi
+  if [ -n "$_oidc_missing" ] && [ -n "$_oidc_ca_file" ]; then
+    log "WARN: oidc_ca_file ignored, it only applies to single sign-on, which is off"
   fi
 
   # API key for the AI workout assistant's cloud providers (provider and model

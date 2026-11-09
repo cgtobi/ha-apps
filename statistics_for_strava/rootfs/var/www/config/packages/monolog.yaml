@@ -34,3 +34,14 @@ monolog:
           level: error
           channels: ["errors"]
           formatter: monolog.formatter.errors
+        # Add-on only: errors also go to the add-on log. Home Assistant offers no
+        # way to open /data, so errors.log alone is out of reach for most users,
+        # yet the login page sends them there when single sign-on fails, and a
+        # "500" page names a Reference code that only that file explains. Same
+        # level and formatter as the file, so both carry the same entries.
+        errors-addon-log:
+          type: stream
+          path: "php://stderr"
+          level: error
+          channels: ["errors"]
+          formatter: monolog.formatter.errors
